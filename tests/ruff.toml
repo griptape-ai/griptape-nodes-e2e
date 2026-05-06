@@ -35,4 +35,6 @@ ignore = [
     "BLE001",
     # Allow importing private names from the library under test.
     "PLC2701",
+    # Allow explicit empty-string comparisons in assertions.
+    "PLC1901",
 ]
