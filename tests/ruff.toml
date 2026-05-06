@@ -37,4 +37,6 @@ ignore = [
     "PLC2701",
     # Allow explicit empty-string comparisons in assertions.
     "PLC1901",
+    # Allow accessing private members of the library under test.
+    "SLF001",
 ]
