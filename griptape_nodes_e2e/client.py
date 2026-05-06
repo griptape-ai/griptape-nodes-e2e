@@ -354,6 +354,23 @@ class NodeTestClient:
         """
         await self._request("RunWorkflowFromScratchRequest", {"file_path": file_path})
 
+    # --- Raw request ---
+
+    async def request(self, request_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send an arbitrary request to the engine.
+
+        Use this for request types not covered by a dedicated method.
+
+        :param request_type: The request type name.
+        :param payload: Request payload fields.
+
+        :returns: The result payload dictionary.
+
+        :raises RuntimeError: If the client is not connected.
+
+        """
+        return await self._request(request_type, payload)
+
     # --- Private helpers ---
 
     async def _start_session(self) -> str:
