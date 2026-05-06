@@ -1,0 +1,8 @@
+# griptape-nodes-e2e
+# Copyright (c) 2026 The Foundry Visionmongers Ltd
+[general]
+contrib = contrib-title-conventional-commits
+
+# Setting contrib rule options is identical to configuring other rules
+[contrib-title-conventional-commits]
+types = fix,feat,refactor,deps,chore,docs,ci

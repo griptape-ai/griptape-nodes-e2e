@@ -1,0 +1,38 @@
+# griptape-nodes-e2e
+# Copyright (c) 2026 The Foundry Visionmongers Ltd
+# Extend the root ruff config, relaxing rules for test code.
+extend = "../pyproject.toml"
+
+[lint]
+ignore = [
+    # Allow assert in tests.
+    "S101",
+    # Don't require docstrings for test functions.
+    "D100", "D101", "D102", "D103", "D104",
+    # Allow magic values in tests.
+    "PLR2004",
+    # Tests are an implicit namespace package.
+    "INP001",
+    # Allow unused arguments (fixtures, parametrize, etc.).
+    "ARG001", "ARG002",
+    # Allow function calls in defaults (common in pytest parametrize).
+    "B008",
+    # Don't require type annotations on test functions.
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202",
+    # Allow methods that don't use `self` in test classes.
+    "PLR6301",
+    # Allow string literals in exceptions (test assertions).
+    "EM101", "EM102",
+    # Allow long exception messages in tests.
+    "TRY003",
+    # Don't require "Raises" in test docstrings.
+    "DOC501",
+    # Don't require "Returns" in test docstrings (helpers like _make_foo).
+    "DOC201",
+    # Allow hardcoded "passwords" in test data.
+    "S105", "S106",
+    # Allow blind `except Exception` in negative-path tests.
+    "BLE001",
+    # Allow importing private names from the library under test.
+    "PLC2701",
+]
