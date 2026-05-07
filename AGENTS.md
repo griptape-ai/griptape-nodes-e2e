@@ -9,6 +9,16 @@ ______________________________________________________________________
 `griptape-nodes-e2e` is an AI-assisted end-to-end testing framework for
 [Griptape Nodes](https://github.com/griptape-ai/griptape-nodes).
 
+### The `workspace/` directory
+
+The `workspace/` directory is the working directory for agent sessions that create e2e tests. It
+has its own `AGENTS.md`, skills, and MCP configuration. When an agent is launched to survey,
+inspect, or test a node, it should be rooted in `workspace/` — not the repository root.
+
+The repository root contains the SDK source code (`griptape_nodes_e2e/`), unit/integration tests
+(`tests/`), and development tooling. These are separate concerns: you develop the SDK here at the
+root, and you *use* the SDK (via agent skills) from `workspace/`.
+
 ______________________________________________________________________
 
 ## Development Commands
