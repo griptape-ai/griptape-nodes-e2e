@@ -6,7 +6,7 @@ description: >-
   guides the inspect skill's live exploration.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.2'
+  version: '0.3'
 ---
 
 # Surveying Griptape Nodes
@@ -24,36 +24,46 @@ transitions. The survey captures all of these uniformly.
 
 ______________________________________________________________________
 
+## ⛔ Before you read any files
+
+You need **both** of the following paths. Check now — before taking any other action:
+
+1. **Library directory** — the path containing `griptape_nodes_library.json` for the node under
+   test. For example: `/home/user/workspace/GriptapeNodes/libraries/griptape_nodes_library/`.
+
+2. **Engine source directory** — the path to the `griptape-nodes` engine source tree. Needed to
+   read base classes (`SuccessFailureNode`, `DataNode`, `ControlNode`, etc.) under
+   `src/griptape_nodes/exe_types/`. For example: `/home/user/workspace/griptape-nodes/`.
+
+If **either** path is absent from this conversation, stop and ask the user for it now. Do not
+infer, search for, or guess either path. Do not proceed to "Locating the Source Code" until you
+have confirmed both.
+
+If the user has already provided **both** paths in this conversation, continue without asking.
+
+______________________________________________________________________
+
 ## Locating the Source Code
 
-### Step 1: Get the library directory from the user
+### Step 1: Find the node's file path
 
-**STOP and ask the user** for the path to the **library directory** that contains the
-`griptape_nodes_library.json` for the node under test. For example:
-`/home/user/workspace/GriptapeNodes/libraries/griptape_nodes_library/`.
+Read `griptape_nodes_library.json` in the library directory the user provided. Locate the entry in
+the `"nodes"` array whose `"class_name"` matches the target node type. The `"file_path"` field
+gives the path to the Python file, relative to the library directory.
 
-Do NOT search the filesystem for `griptape_nodes_library.json` or attempt to locate the library
-yourself. You MUST wait for the user to provide the path before proceeding.
-
-If the user has already provided this path earlier in the conversation, do not ask again.
-
-### Step 2: Find the node's file path
-
-Read `griptape_nodes_library.json` in the directory the user provided. Locate the entry in the
-`"nodes"` array whose `"class_name"` matches the target node type. The `"file_path"` field gives
-the path to the Python file, relative to the library directory.
-
-### Step 4: Read the node source
+### Step 3: Read the node source
 
 Read the Python file at the resolved path.
 
-### Step 5: Follow the inheritance chain
+### Step 4: Follow the inheritance chain
 
 If the node inherits from a base class:
 
 - **Within the same library** — follow the import and read the parent class file.
-- **From the engine** (`griptape_nodes.exe_types`) — read the engine's base class to identify
-  inherited parameters and lifecycle hooks. Common base classes:
+- **From the engine** (`griptape_nodes.exe_types`) — read the base class from the engine source
+  directory the user provided. The relevant files are under `src/griptape_nodes/exe_types/` (e.g.
+  `node_types.py` for `BaseNode`, `DataNode`, `ControlNode`, `SuccessFailureNode`). Common base
+  classes:
   - `BaseNode` — minimal, no extra parameters.
   - `DataNode` — adds hidden control parameters (`exec_in`, `exec_out`).
   - `SuccessFailureNode` — adds control parameters (`exec_in`, `exec_out`, `failure`). Subclasses
@@ -205,22 +215,35 @@ Also check for `validate_before_workflow_run()`, which runs before the entire wo
 Common helper: `validate_empty_parameter(param, additional_msg)` — returns a `ValueError` if the
 named parameter is empty or whitespace-only.
 
-#### 7c. Input coercion (`before_value_set` / `set_parameter_value`)
+#### 7c. Design-time input handling (`before_value_set` / `set_parameter_value`)
 
-Some nodes silently normalise bad inputs at design time rather than rejecting them. Look for:
+Some nodes perform non-trivial work when parameter values are set at design time, rather than
+waiting until `process()` runs. This is a broader category than just error handling — it includes
+any transformation, normalisation, or side effect triggered by setting a parameter value. Look for:
 
-- `before_value_set()` overrides that convert invalid types to safe defaults (e.g. non-string key →
-  `""`, non-dict input → `{}`).
+- `before_value_set()` overrides that silently convert invalid types to safe defaults (e.g.
+  non-string key → `""`, non-dict input → `{}`).
 - `set_parameter_value()` overrides that intercept and normalise values before calling `super()`.
+- Any logic in these methods that mutates other parameters, changes types, or updates traits as a
+  side effect of setting a value. (Note: `after_value_set` mutations are already covered in §2
+  "Value-driven configurations" — this section covers `before_value_set` / `set_parameter_value`
+  specifically.)
 
-For each coercion, document:
+For each design-time input handler, document:
 
-- Which parameter is coerced.
-- What input types trigger coercion.
-- What the coerced output is.
+- Which parameter is affected.
+- What input triggers the behaviour (bad type, out-of-range value, specific value pattern).
+- What the result is (coerced value, rejected value, side effect on other parameters).
 
-These do not raise exceptions — they silently fix the value. Tests should verify the coercion
-happened (the parameter holds the normalised value, not the original).
+These typically do not raise exceptions — they silently fix the value. Tests should verify the
+transformation happened (the parameter holds the normalised value, not the original).
+
+**Testing limitation:** All design-time parameter behaviour — coercion, parameter surface mutations
+(§2), type narrowing, and trait updates — fires when `SetParameterValueRequest` is called, not
+during workflow execution. A saved workflow captures the *result* of this work (the final parameter
+state), not the *trigger*. This means design-time behaviour cannot be re-tested by re-running a
+saved workflow; it can only be confirmed during the inspect phase or via pytest tests that create a
+fresh node and set values.
 
 #### 7d. Runtime errors in `process()`
 
@@ -336,13 +359,13 @@ _create_status_parameters() is called.>
 <Graceful = "Yes" if the raise is wrapped in _handle_failure_exception (SuccessFailureNode only),
 "No" if bare. If no runtime errors, write "None.">
 
-### Input coercion (before_value_set / set_parameter_value)
+### Design-time input handling (before_value_set / set_parameter_value)
 
-| Parameter | Bad Input Type | Coerced To |
-|-----------|---------------|------------|
-| ...       | ...           | ...        |
+| Parameter | Input | Result | Notes |
+|-----------|-------|--------|-------|
+| ...       | ...   | ...    | ...   |
 
-<If no coercion, write "None.">
+<If none, write "None.">
 
 ### Visual indicators (ParameterMessage / BadgeData)
 
@@ -433,7 +456,9 @@ ______________________________________________________________________
   may be several levels deep. For each, note whether the caller wraps it in
   `_handle_failure_exception()`.
 
-- **Coercion ≠ validation.** If `before_value_set()` silently converts a bad value to a safe
-  default, that is coercion (§7c), not a runtime error (§7d). Both are important but they produce
-  different test cases: coercion tests verify the normalised value; runtime error tests verify the
-  exception or graceful failure path.
+- **Design-time input handling ≠ runtime errors.** If `before_value_set()` or
+  `set_parameter_value()` silently converts or normalises a value, that is design-time input
+  handling (§7c), not a runtime error (§7d). Both are important but they produce different test
+  cases: design-time handling tests verify the normalised value; runtime error tests verify the
+  exception or graceful failure path. Design-time behaviour also cannot be re-tested by re-running
+  a saved workflow — it must be confirmed during inspection or via pytest.
