@@ -6,7 +6,7 @@ description: >-
   guides the inspect skill's live exploration.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.1'
+  version: '0.2'
 ---
 
 # Surveying Griptape Nodes
@@ -162,11 +162,12 @@ transitions that add, remove, and replace parameters in a single operation. Docu
 Document parameters or hooks inherited from parent classes. For well-known engine base classes, use
 the following reference:
 
-| Base class           | Inherited parameters                                                                                             |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `BaseNode`           | (none beyond engine internals)                                                                                   |
-| `DataNode`           | `exec_in` (control-in, hidden), `exec_out` (control-out, hidden)                                                 |
-| `SuccessFailureNode` | `exec_in` (control-in), `exec_out` (control-out, display "Succeeded"), `failure` (control-out, display "Failed") |
+| Base class           | Inherited parameters                                                                                             | Error handling                                                                                                               |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `BaseNode`           | (none beyond engine internals)                                                                                   | Unhandled exceptions in `process()` crash the flow with `NodeErrorEvent`.                                                    |
+| `ControlNode`        | `exec_in` (control-in), `exec_out` (control-out)                                                                 | Same as `BaseNode`.                                                                                                          |
+| `DataNode`           | `exec_in` (control-in, hidden), `exec_out` (control-out, hidden)                                                 | Same as `BaseNode`.                                                                                                          |
+| `SuccessFailureNode` | `exec_in` (control-in), `exec_out` (control-out, display "Succeeded"), `failure` (control-out, display "Failed") | `_handle_failure_exception(e)`: if `failure` output is connected → logs error, continues along "Failed" path; else → raises. |
 
 **`_create_status_parameters()` (opt-in):** Many `SuccessFailureNode` subclasses call this helper
 in their `__init__` to add `was_successful` (output, bool) and `result_details` (output, str)
@@ -174,7 +175,89 @@ inside a collapsible "Status" `ParameterGroup`. Check whether the target node ca
 include these parameters in the survey. They are added to the node's element tree via a
 `ParameterGroup`, not as top-level parameters.
 
-### 7. Control parameters
+### 7. Error behaviours
+
+Nodes surface errors through several distinct mechanisms. The survey must identify which ones a
+node uses so the inspect skill can confirm them against the live engine and the test matrix can
+cover failure paths.
+
+#### 7a. SuccessFailureNode base class
+
+If the node (or any ancestor) extends `SuccessFailureNode`, it automatically has:
+
+- **Two control outputs:** `exec_out` (display "Succeeded") and `failure` (display "Failed").
+- **`_handle_failure_exception(exception)`** — behaviour depends on whether the `failure` output
+  has outgoing connections:
+  - **Connected:** logs the error and continues execution along the "Failed" path (graceful
+    failure).
+  - **Not connected:** raises the exception, crashing the flow with a `NodeErrorEvent`.
+- **Status parameters** (if `_create_status_parameters()` is called in `__init__`):
+  `was_successful` (bool, output) and `result_details` (str, output) inside a collapsible "Status"
+  `ParameterGroup`.
+
+Document: that the node is a `SuccessFailureNode`, whether it calls `_create_status_parameters()`,
+and all call sites of `_handle_failure_exception` with the conditions that trigger them.
+
+#### 7b. Pre-execution validation (`validate_before_node_run`)
+
+Look for overrides of `validate_before_node_run()`. This method runs before `process()` and returns
+a list of `Exception` objects. If any are returned, the workflow transitions to `ERRORED` and
+`process()` never runs.
+
+For each validation check, document:
+
+- Which parameter is being validated.
+- What condition triggers the error (empty, wrong type, out of range, etc.).
+- The error message pattern.
+
+Also check for `validate_before_workflow_run()`, which runs before the entire workflow starts.
+
+Common helper: `validate_empty_parameter(param, additional_msg)` — returns a `ValueError` if the
+named parameter is empty or whitespace-only.
+
+#### 7c. Input coercion (`before_value_set` / `set_parameter_value`)
+
+Some nodes silently normalise bad inputs at design time rather than rejecting them. Look for:
+
+- `before_value_set()` overrides that convert invalid types to safe defaults (e.g. non-string key →
+  `""`, non-dict input → `{}`).
+- `set_parameter_value()` overrides that intercept and normalise values before calling `super()`.
+
+For each coercion, document:
+
+- Which parameter is coerced.
+- What input types trigger coercion.
+- What the coerced output is.
+
+These do not raise exceptions — they silently fix the value. Tests should verify the coercion
+happened (the parameter holds the normalised value, not the original).
+
+#### 7d. Runtime errors in `process()`
+
+Look for `raise` statements (or calls to methods that raise) inside `process()` and any methods it
+calls. For each:
+
+- What condition triggers the error.
+- What exception type is raised.
+- Whether the raise is wrapped in `_handle_failure_exception()` (SuccessFailureNode graceful path)
+  or bare (crashes the flow unconditionally).
+
+Pay special attention to nodes with `type="any"` or `input_types=["any"]` parameters — these accept
+anything at connection time but typically validate at runtime, making them the most likely source
+of interesting error paths.
+
+#### 7e. ParameterMessage and BadgeData indicators
+
+Look for:
+
+- `ParameterMessage(variant="error", ...)` or `ParameterMessage(variant="warning", ...)` added to
+  the node.
+- `set_badge(variant="error"|"warning", ...)` calls.
+
+These are visual indicators that don't affect execution flow. Document when they are shown and what
+triggers them, but note that they are informational, not flow-controlling.
+
+### 8. Control parameters
 
 Control parameters (`ControlParameterInput`, `ControlParameterOutput`) govern execution flow. They
 are structurally distinct from data parameters — they have type `"control"`, and are rendered at
@@ -239,6 +322,42 @@ Changes from default: <brief description of what changed>
 
 User can add parameters via the "+" button. Each added parameter has:
 <description of the template — name pattern, type, modes, etc.>
+
+## Error Behavior
+
+### Base class: <SuccessFailureNode | ControlNode | DataNode | BaseNode>
+<If SuccessFailureNode: note the Succeeded/Failed control outputs and whether
+_create_status_parameters() is called.>
+
+### Pre-execution validation (validate_before_node_run)
+
+| Condition | Parameter | Expected Error |
+|-----------|-----------|----------------|
+| ...       | ...       | ...            |
+
+<If validate_before_node_run is not overridden, write "None." instead of the table.>
+
+### Runtime errors (process)
+
+| Condition | Error Type | Graceful | Notes |
+|-----------|-----------|----------|-------|
+| ...       | ...       | ...      | ...   |
+
+<Graceful = "Yes" if the raise is wrapped in _handle_failure_exception (SuccessFailureNode only),
+"No" if bare. If no runtime errors, write "None.">
+
+### Input coercion (before_value_set / set_parameter_value)
+
+| Parameter | Bad Input Type | Coerced To |
+|-----------|---------------|------------|
+| ...       | ...           | ...        |
+
+<If no coercion, write "None.">
+
+### Visual indicators (ParameterMessage / BadgeData)
+
+<Describe any error/warning messages or badges, what triggers them, and when they appear.
+If none, write "None.">
 
 ## Notes
 
@@ -318,3 +437,13 @@ ______________________________________________________________________
 - **Keep tables complete.** Each configuration table should list **all** visible parameters for
   that configuration, not just the ones that changed. This makes each table self-contained for
   downstream consumers.
+
+- **Trace error paths through helper methods.** `process()` often delegates to private methods like
+  `_get_value()` or `_validate_inputs()`. Follow all call chains to find `raise` statements — they
+  may be several levels deep. For each, note whether the caller wraps it in
+  `_handle_failure_exception()`.
+
+- **Coercion ≠ validation.** If `before_value_set()` silently converts a bad value to a safe
+  default, that is coercion (§7c), not a runtime error (§7d). Both are important but they produce
+  different test cases: coercion tests verify the normalised value; runtime error tests verify the
+  exception or graceful failure path.
