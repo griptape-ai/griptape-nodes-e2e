@@ -26,32 +26,22 @@ ______________________________________________________________________
 
 ## Locating the Source Code
 
-### Step 1: Get the library root directory
+### Step 1: Get the library directory from the user
 
-Ask the user for the **library root directory** — the directory that contains library
-subdirectories. For example: `/home/user/workspace/GriptapeNodes/libraries/`.
+**STOP and ask the user** for the path to the **library directory** that contains the
+`griptape_nodes_library.json` for the node under test. For example:
+`/home/user/workspace/GriptapeNodes/libraries/griptape_nodes_library/`.
+
+Do NOT search the filesystem for `griptape_nodes_library.json` or attempt to locate the library
+yourself. You MUST wait for the user to provide the path before proceeding.
 
 If the user has already provided this path earlier in the conversation, do not ask again.
 
-### Step 2: Find the matching library subdirectory
+### Step 2: Find the node's file path
 
-The user will specify the library name as it appears in the engine (e.g.
-`Griptape Nodes Testing Library`). Find the matching subdirectory by reading the
-`griptape_nodes_library.json` file in each subdirectory under the library root until you find the
-one whose `"name"` field matches.
-
-```bash
-# Example: find all library manifests
-find <library_root> -maxdepth 2 -name "griptape_nodes_library.json"
-```
-
-Read each manifest and compare the `"name"` field to the user's library name.
-
-### Step 3: Find the node's file path
-
-In the matching `griptape_nodes_library.json`, locate the entry in the `"nodes"` array whose
-`"class_name"` matches the target node type. The `"file_path"` field gives the path to the Python
-file, relative to the library subdirectory.
+Read `griptape_nodes_library.json` in the directory the user provided. Locate the entry in the
+`"nodes"` array whose `"class_name"` matches the target node type. The `"file_path"` field gives
+the path to the Python file, relative to the library directory.
 
 ### Step 4: Read the node source
 
