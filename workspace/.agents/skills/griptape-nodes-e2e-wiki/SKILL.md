@@ -82,6 +82,22 @@ Nodes that convert the output of the node under test into a type suitable for as
 | `ToInteger` | [to-integer.md](references/nodes/standard-library/to-integer.md) | Convert any → `int`                         |
 | `ToBool`    | [to-bool.md](references/nodes/standard-library/to-bool.md)       | Convert any → `bool` (for `AssertTrue`)     |
 
+### Control Flow — `Griptape Nodes Library`
+
+Nodes that branch or sequence execution in a test workflow.
+
+| Node     | Reference page                                             | One-line summary                                                       |
+| -------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `IfElse` | [if-else.md](references/nodes/standard-library/if-else.md) | Branch workflow on a boolean; optionally pass through a selected value |
+
+### Utility — `Griptape Nodes Library`
+
+Nodes useful as sinks, probes, or helpers in test workflows.
+
+| Node         | Reference page                                                     | One-line summary                                                    |
+| ------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `LoggerNode` | [logger-node.md](references/nodes/standard-library/logger-node.md) | Log messages; `any`-type passthrough; usable as a failure-path sink |
+
 ### Output Extractors — `Griptape Nodes Library`
 
 Nodes that extract a specific value from a complex output (list, dict, JSON) for assertion.
