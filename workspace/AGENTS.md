@@ -17,23 +17,22 @@ Follow these four phases when creating a test for a node:
    confirm parameter configurations against a live engine. This produces
    `inspections/<NodeType>.inspect.md`.
 
-3. **Plan** — Use the `griptape-nodes-e2e-wiki` skill to decide which helper nodes (inputs,
-   converters) and assertion nodes to wire up in the test workflow. Cross-reference the inspection
-   report to confirm type compatibility.
-
-4. **Code** — Use the `griptape-nodes-e2e-sdk` skill to write the pytest test. Tests live under
-   `tests/` in this workspace.
+3. **Build** — Use the `griptape-nodes-e2e-workflow` skill to build, validate, and save test
+   workflows via MCP tools. The skill reads the inspection report, creates one workflow per
+   testable section, executes each against the live engine, and saves the results to
+   `tests/<NodeType>/`. The `griptape-nodes-e2e-wiki` skill is consulted automatically for helper
+   node selection and wiring guidance.
 
 ______________________________________________________________________
 
 ## Directory Layout
 
-| Path              | Purpose                                                      |
-| ----------------- | ------------------------------------------------------------ |
-| `inspections/`    | Survey (`.survey.md`) and inspection (`.inspect.md`) outputs |
-| `tests/`          | Generated e2e test files                                     |
-| `.agents/skills/` | Skill definitions (survey, inspect, wiki, sdk)               |
-| `.mcp.json`       | MCP server connection to griptape-nodes                      |
+| Path                | Purpose                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `inspections/`      | Survey (`.survey.md`), inspection (`.inspect.md`), and workflow summary (`.workflows.md`) outputs |
+| `tests/<NodeType>/` | Saved test workflow files (`.py`), one per testable section                                       |
+| `.agents/skills/`   | Skill definitions (survey, inspect, wiki, workflow)                                               |
+| `.mcp.json`         | MCP server connection to griptape-nodes                                                           |
 
 ______________________________________________________________________
 

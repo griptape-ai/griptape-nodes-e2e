@@ -7,7 +7,7 @@ description: >-
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.5'
+  version: '0.6'
 ---
 
 # Inspecting Griptape Nodes
@@ -240,12 +240,14 @@ Structure:
 Inspected against live engine on <date>.
 
 ## Configuration: default
+<!-- id: config_default -->
 
 | Name | Direction | Type | Input Types | Output Type | Default | Constraints |
 |------|-----------|------|-------------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
 ## Configuration: <param_name> = "<value>"
+<!-- id: config_<param_name>_eq_<value> -->
 
 Changes from default: <brief description of what changed>
 
@@ -254,6 +256,7 @@ Changes from default: <brief description of what changed>
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
 ## Configuration: <param_name> ← <source_type> (connected)
+<!-- id: config_<param_name>_connected -->
 
 Changes from default: <brief description of what changed>
 
@@ -267,6 +270,7 @@ Changes from default: <brief description of what changed>
 <Confirmed base class and whether status parameters exist.>
 
 ### Input coercion
+<!-- id: error_input_coercion -->
 
 | Parameter | Bad Input | Expected Coerced To | Actual Coerced To | Status |
 |-----------|-----------|--------------------|--------------------|--------|
@@ -275,6 +279,7 @@ Changes from default: <brief description of what changed>
 <Status = "Confirmed" if actual matches expected, "Discrepancy" if not. If none, write "None.">
 
 ### Pre-execution validation (validate_before_node_run)
+<!-- id: error_pre_execution_validation -->
 
 | Condition | Parameter | Expected Error | Actual Error | Status |
 |-----------|-----------|----------------|--------------|--------|
@@ -283,6 +288,7 @@ Changes from default: <brief description of what changed>
 <If none, write "None.">
 
 ### Runtime errors (process)
+<!-- id: error_runtime -->
 
 | Condition | Error Type | Graceful Path | Hard Failure Path | Status |
 |-----------|-----------|---------------|-------------------|--------|
@@ -313,6 +319,31 @@ _or_
 1. <Blocker description with steps to reproduce.>
 2. <Blocker description with steps to reproduce.>
 ```
+
+### Section IDs
+
+Every testable section must include an `<!-- id: lower_snake_case_id -->` HTML comment on the line
+immediately after the heading. Downstream skills use these IDs as workflow filenames — they must be
+unique within the document and suitable for use in a file path (lowercase, underscores, no spaces
+or special characters).
+
+**Naming conventions:**
+
+| Section type                    | ID pattern                       | Example                          |
+| ------------------------------- | -------------------------------- | -------------------------------- |
+| Default configuration           | `config_default`                 | `config_default`                 |
+| Value-driven configuration      | `config_<param>_eq_<value>`      | `config_operator_eq_contains`    |
+| Connection-driven configuration | `config_<param>_connected`       | `config_model_connected`         |
+| Input coercion                  | `error_input_coercion`           | `error_input_coercion`           |
+| Pre-execution validation        | `error_pre_execution_validation` | `error_pre_execution_validation` |
+| Runtime errors                  | `error_runtime`                  | `error_runtime`                  |
+
+Sanitise values for the ID: replace spaces with `_`, remove quotes and special characters,
+lowercase everything. For deduplicated configurations (e.g. `model = "gpt-4o" | "gpt-4o-mini"`),
+use the first value in the ID.
+
+Sections that are **not testable** — `## Static parameters`, `## Notes`, `## Verdict`,
+`### Base class`, `### Visual indicators` — do **not** get IDs.
 
 ### Column definitions
 
