@@ -6,9 +6,14 @@
 ## Description
 
 Asserts a numeric comparison between `actual` and `expected` using a selectable relational
-operator. Both inputs are typed `float`, but integer values work fine due to Python's numeric
-coercion. Use this whenever a node produces a numeric output and you want to check exact equality
-or a relational bound.
+operator. Both inputs are typed `float`. Use this whenever a node produces a **`float`** output and
+you want to check exact equality or a relational bound.
+
+> **`int` output type is not compatible.** The engine enforces strict type matching on connections:
+> a parameter with `output_type="int"` cannot connect to `actual` (which accepts only `float`). The
+> connection is rejected at wiring time, even though Python would coerce the value at runtime. If
+> the node under test produces an `int` output (e.g. after design-time type narrowing), use
+> `AssertEqual` instead — its `actual` parameter accepts `any`.
 
 ## Parameters
 
@@ -37,10 +42,9 @@ contains: `"<message>: Assertion failed: <actual> <operator> <expected>"`.
 
 ## Use When
 
-- The node under test produces a `float` or `int` output.
+- The node under test produces a **`float`** output (not `int` — see note above).
 - You need to assert an exact value (`==`) or a bound (`>=`, `<`, etc.) — e.g. a confidence score
   is above a threshold, a word count is positive, a duration is within limits.
-- `int` outputs can be wired directly; Python coerces them to `float` transparently.
 
 ## Example Wiring
 

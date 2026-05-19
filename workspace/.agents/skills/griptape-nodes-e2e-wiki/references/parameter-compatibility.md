@@ -11,7 +11,7 @@ assertion node.
 | ----------------------- | ---------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------- |
 | `str`                   | ✅ exact equality                                    | ⚠️ truthy only                                     | ✅ full operator set                                     | ❌                                                       | ❌                                                              |
 | `float`                 | ✅ exact equality                                    | ⚠️ truthy only (non-zero)                          | ❌                                                       | ✅ full operator set                                     | ❌                                                              |
-| `int`                   | ✅ exact equality                                    | ⚠️ truthy only (non-zero)                          | ❌                                                       | ✅ coerced to float                                      | ❌                                                              |
+| `int`                   | ✅ exact equality                                    | ⚠️ truthy only (non-zero)                          | ❌                                                       | ❌ connection rejected (engine type mismatch: int→float) | ❌                                                              |
 | `bool`                  | ✅ e.g. `expected=True`                              | ✅ primary choice                                  | ❌                                                       | ❌                                                       | ❌                                                              |
 | `any`                   | ✅ primary choice                                    | ✅ presence check                                  | ⚠️ only if value is str                                  | ⚠️ only if value is numeric                              | ❌                                                              |
 | file path (`str`/`any`) | ✅ exact path equality                               | ❌                                                 | ✅ path pattern checks                                   | ❌                                                       | ✅ existence check                                              |
@@ -25,11 +25,16 @@ assertion node.
 - Pattern match → `AssertStrings` with `regex`
 - Non-empty → `AssertTrue`
 
-**I have a `float` or `int` output and want to check…**
+**I have a `float` output and want to check…**
 
 - Exact value → `AssertNumbers` with `==`
 - Above a threshold → `AssertNumbers` with `>=` or `>`
 - Within a range → chain two `AssertNumbers` nodes (`>= lower` and `<= upper`)
+- Non-zero → `AssertTrue`
+
+**I have an `int` output and want to check…**
+
+- Exact value → `AssertEqual` (not `AssertNumbers` — the engine rejects `int`→`float` connections)
 - Non-zero → `AssertTrue`
 
 **I have a `bool` output and want to check…**
