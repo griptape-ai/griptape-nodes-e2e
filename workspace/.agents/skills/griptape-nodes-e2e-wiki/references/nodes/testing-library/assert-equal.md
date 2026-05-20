@@ -23,10 +23,19 @@ If `actual != expected`, the node calls `_handle_failure_exception(AssertionErro
 raises an `AssertionError` which causes the flow to fail. The `result_details` output parameter
 contains the full failure message: `"<message>: Assertion failed: <actual!r> != <expected!r>"`.
 
+## Important: `type="any"` Has No UI Widget
+
+Both `actual` and `expected` have `type="any"`, which means the engine does not render a value
+widget for them. You cannot set or inspect their values visually in the editor. To make expected
+values visible when reviewing a saved workflow, **always connect `expected` to an upstream input
+provider node** (e.g. `TextInput`, `IntegerInput`, `FloatInput`, `BoolInput`) rather than setting
+it as a PROPERTY via `SetParameterValueRequest`.
+
+The same applies to `actual` — it should always be connected to the node under test's output.
+
 ## Use When
 
 - The node under test produces a value of any type and you want to assert exact equality.
-- The expected value is known at test-build time and can be set as a PROPERTY.
 - You want a single general-purpose assertion rather than a type-specific one.
 
 Prefer `AssertStrings` when you need flexible string operators (contains, regex). Prefer
@@ -35,6 +44,7 @@ Prefer `AssertStrings` when you need flexible string operators (contains, regex)
 ## Example Wiring
 
 ```
-TextNode.output  →  AssertEqual.actual
-(set AssertEqual.expected = "hello world" as PROPERTY)
+NodeUnderTest.output     →  AssertEqual.actual
+TextInput_Expected.text  →  AssertEqual.expected
+(set TextInput_Expected.value = "hello world" as PROPERTY)
 ```
