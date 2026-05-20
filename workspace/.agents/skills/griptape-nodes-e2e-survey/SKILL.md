@@ -1,19 +1,20 @@
 ---
 name: griptape-nodes-e2e-survey
 description: >-
-  Analyse a Griptape Node's Python source code to enumerate all parameter configurations —
-  value-driven, connection-driven, and UI-message-driven. Produces a survey document that
-  guides the inspect skill's live exploration.
+  Given a node class name, locate its source code via MCP tools and analyse it to enumerate all
+  parameter configurations — value-driven, connection-driven, and UI-message-driven. Produces a
+  survey document that guides the inspect skill's live exploration.
+compatibility: Requires an MCP connection to a running griptape-nodes engine (extended tools mode).
 metadata:
   author: the-foundry-visionmongers
-  version: '0.3'
+  version: '0.4'
 ---
 
 # Surveying Griptape Nodes
 
 ## Purpose
 
-Given a target node type and library name, read the node's Python source code and produce a
+Given a target node class name, locate its source code via MCP tools, read it, and produce a
 markdown document listing every **configuration axis** and the expected parameter surface for each.
 This document feeds into the `griptape-nodes-e2e-inspect` skill, which confirms predictions against
 a live engine.
@@ -24,46 +25,60 @@ transitions. The survey captures all of these uniformly.
 
 ______________________________________________________________________
 
-## ⛔ Before you read any files
+## MCP Tools Used
 
-You need **both** of the following paths. Check now — before taking any other action:
+Source paths are discovered at runtime via MCP tools. No user-provided paths are needed.
 
-1. **Library directory** — the path containing `griptape_nodes_library.json` for the node under
-   test. For example: `/home/user/workspace/GriptapeNodes/libraries/griptape_nodes_library/`.
-
-2. **Engine source directory** — the path to the `griptape-nodes` engine source tree. Needed to
-   read base classes (`SuccessFailureNode`, `DataNode`, `ControlNode`, etc.) under
-   `src/griptape_nodes/exe_types/`. For example: `/home/user/workspace/griptape-nodes/`.
-
-If **either** path is absent from this conversation, stop and ask the user for it now. Do not
-infer, search for, or guess either path. Do not proceed to "Locating the Source Code" until you
-have confirmed both.
-
-If the user has already provided **both** paths in this conversation, continue without asking.
+| MCP tool                         | Purpose                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| `ListRegisteredLibrariesRequest` | List all registered library names.                                        |
+| `ListNodeTypesInLibraryRequest`  | List node class names in a library. Args: `library`.                      |
+| `GetLibrarySourceInfoRequest`    | Get the filesystem path of a library's source directory. Args: `library`. |
+| `GetEngineSourceInfoRequest`     | Get the filesystem path of the engine source tree.                        |
 
 ______________________________________________________________________
 
 ## Locating the Source Code
 
-### Step 1: Find the node's file path
+### Step 1: Find the node's library
 
-Read `griptape_nodes_library.json` in the library directory the user provided. Locate the entry in
-the `"nodes"` array whose `"class_name"` matches the target node type. The `"file_path"` field
-gives the path to the Python file, relative to the library directory.
+Call `ListRegisteredLibrariesRequest` to get all library names. For each library, call
+`ListNodeTypesInLibraryRequest` and check whether the target class name appears.
 
-### Step 3: Read the node source
+- **Found in exactly one library** — proceed with that library.
+- **Found in multiple libraries** — stop and ask the user which library they mean.
+- **Not found in any library** — stop and tell the user the class name was not found.
+
+Record the **library name** — it is included in the survey output header and used by the inspect
+skill.
+
+### Step 2: Get source paths
+
+Call both MCP tools to get filesystem paths:
+
+1. `GetLibrarySourceInfoRequest` with the library name — returns `library_directory` (the directory
+   containing `griptape_nodes_library.json` and node source files).
+2. `GetEngineSourceInfoRequest` — returns `package_directory` (the engine source root).
+
+### Step 3: Find the node's file path
+
+Read `griptape_nodes_library.json` in the library directory. Locate the entry in the `"nodes"`
+array whose `"class_name"` matches the target node type. The `"file_path"` field gives the path to
+the Python file, relative to the library directory.
+
+### Step 4: Read the node source
 
 Read the Python file at the resolved path.
 
-### Step 4: Follow the inheritance chain
+### Step 5: Follow the inheritance chain
 
 If the node inherits from a base class:
 
 - **Within the same library** — follow the import and read the parent class file.
 - **From the engine** (`griptape_nodes.exe_types`) — read the base class from the engine source
-  directory the user provided. The relevant files are under `src/griptape_nodes/exe_types/` (e.g.
-  `node_types.py` for `BaseNode`, `DataNode`, `ControlNode`, `SuccessFailureNode`). Common base
-  classes:
+  directory returned by `GetEngineSourceInfoRequest`. The relevant files are under `exe_types/`
+  (e.g. `node_types.py` for `BaseNode`, `DataNode`, `ControlNode`, `SuccessFailureNode`). Common
+  base classes:
   - `BaseNode` — minimal, no extra parameters.
   - `DataNode` — adds hidden control parameters (`exec_in`, `exec_out`).
   - `SuccessFailureNode` — adds control parameters (`exec_in`, `exec_out`, `failure`). Subclasses
