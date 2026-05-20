@@ -185,8 +185,26 @@ ______________________________________________________________________
 
 ## Workflow Types
 
-The inspection report contains several types of testable sections, identified by their
-`<!-- id: ... -->` comment. Each type requires a different workflow structure.
+The inspection report contains several types of testable sections, identified by their metadata
+line (`**ID:** ... · **Testability:** ...`). Each type requires a different workflow structure.
+
+### Testability check — skip construction-time sections
+
+Before processing any testable section, check its **Testability** value on the metadata line
+(formatted as `**ID:** ... · **Testability:** ...`). If the value is `construction-time`, **skip
+the section entirely** — do not build, execute, or save a workflow for it. Record the skip in the
+summary as:
+
+```
+| section_id | Construction-time | SKIPPED — construction-time only; requires phase-2 test script | (no workflow) |
+```
+
+Construction-time sections document parameter surface mutations (type changes, `input_types`
+narrowing) that occur during workflow construction and are baked into the saved state. A saved
+workflow cannot re-test them. See the inspect skill's "Testability classification" section for
+details.
+
+If the value is `static-workflow`, process the section normally.
 
 ### Configuration tests (`config_*`)
 
@@ -389,7 +407,9 @@ ______________________________________________________________________
 
 For each testable section in the inspection report:
 
-1. Read the section and its <!-- id: section_id --> comment.
+1. Read the section and its metadata line (`**ID:** ... · **Testability:** ...`). If the
+   testability value is `construction-time`, skip to the next section and record as SKIPPED in the
+   summary.
 2. Determine the workflow type (configuration, design-time input handling, validation, runtime).
 3. If design-time input handling:
    - Copy confirmed results from inspect report to summary (do not re-run)

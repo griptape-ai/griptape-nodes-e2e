@@ -161,6 +161,11 @@ For each connection-driven configuration identified in the survey:
 6. Call `DeleteConnectionRequest` to disconnect.
 7. Optionally confirm the parameter surface reverts to the pre-connection state.
 8. Call `DeleteNodeRequest` to delete the helper node.
+9. **Assess testability.** Determine whether this connection-driven configuration produces runtime
+   behaviour that is distinguishable from an already-confirmed `static-workflow` configuration. If
+   the connection only changes parameter metadata (types, input_types, output_type, parameter
+   visibility) and the runtime outputs and control paths are identical to another configuration,
+   mark it `construction-time`. See §Testability Classification below.
 
 If the survey lists no connection-driven configurations, skip this step.
 
@@ -314,14 +319,14 @@ Structure:
 Inspected against live engine on <date>.
 
 ## Configuration: default
-<!-- id: config_default -->
+**ID:** `config_default` · **Testability:** `static-workflow`
 
 | Name | Direction | Type | Input Types | Output Type | Default | Constraints |
 |------|-----------|------|-------------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
 ## Configuration: <param_name> = "<value>"
-<!-- id: config_<param_name>_eq_<value> -->
+**ID:** `config_<param_name>_eq_<value>` · **Testability:** `static-workflow`
 
 Changes from default: <brief description of what changed>
 
@@ -330,7 +335,7 @@ Changes from default: <brief description of what changed>
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
 ## Configuration: <param_name> ← <source_type> (connected)
-<!-- id: config_<param_name>_connected -->
+**ID:** `config_<param_name>_connected` · **Testability:** `static-workflow` | `construction-time`
 
 Changes from default: <brief description of what changed>
 
@@ -344,7 +349,7 @@ Changes from default: <brief description of what changed>
 <Confirmed base class and whether status parameters exist.>
 
 ### Design-time input handling
-<!-- id: error_design_time_input -->
+**ID:** `error_design_time_input` · **Testability:** `static-workflow` | `construction-time`
 
 | Parameter | Input | Expected Result | Actual Result | Status |
 |-----------|-------|-----------------|---------------|--------|
@@ -450,13 +455,19 @@ _or_
 2. <Blocker description with steps to reproduce.>
 ```
 
-### Section IDs
+### Section IDs and testability tags
 
-Configuration and design-time sections use an `<!-- id: lower_snake_case_id -->` HTML comment on
-the line immediately after the heading. Pre-execution validation and runtime error sections use an
-ID column in their table — each row gets its own unique ID. Downstream skills use these IDs as
-workflow filenames — they must be unique within the document and suitable for use in a file path
-(lowercase, underscores, no spaces or special characters).
+Configuration and design-time sections use a **bold metadata line** on the line immediately after
+the heading, formatted as:
+
+```
+**ID:** `section_id` · **Testability:** `static-workflow` | `construction-time`
+```
+
+Pre-execution validation and runtime error sections use an ID column in their table — each row gets
+its own unique ID. Downstream skills use these IDs as workflow filenames — they must be unique
+within the document and suitable for use in a file path (lowercase, underscores, no spaces or
+special characters).
 
 **Naming conventions:**
 
@@ -475,7 +486,36 @@ use the first value in the ID.
 
 Sections that are **not testable** — `## Static parameters`, `## MCP Constraints`,
 `## Confirmed Helper Nodes`, `## Runtime Observations`, `## Notes`, `## Verdict`, `### Base class`,
-`### Visual indicators` — do **not** get IDs.
+`### Visual indicators` — do **not** get ID/testability metadata lines.
+
+### Testability classification
+
+Every testable section must include a **Testability** value on its metadata line. This tells
+downstream skills whether the behaviour can be verified by loading and running a saved workflow, or
+only by building a workflow programmatically and observing changes during construction.
+
+The testability tag is **mandatory** — every section with an ID must also have a testability value.
+
+| Testability value   | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `static-workflow`   | The behaviour produces runtime results (outputs, control paths, errors) that differ from other configurations when a saved workflow is re-run. A saved `.py` workflow can exercise this.                                                                                                                                                                                                                                                                                                         |
+| `construction-time` | The behaviour is a parameter surface mutation (type changes, `input_types` narrowing, parameter visibility) that occurs at design time when connections are made or removed. The saved workflow bakes in the already-mutated state, so the mutation never re-fires on re-run. The runtime outputs are indistinguishable from another `static-workflow` configuration. Only a programmatic test script that builds a workflow and inspects parameter metadata mid-construction can exercise this. |
+
+**When to use `construction-time`:**
+
+- The configuration section documents changes to parameter `type`, `input_types`, or `output_type`
+  triggered by connecting or disconnecting nodes.
+- The runtime behaviour (outputs and control paths) is identical to another configuration that is
+  already marked `static-workflow`.
+- The only observable difference is in the parameter metadata, not in execution results.
+
+**When to use `static-workflow`:**
+
+- The configuration produces different runtime outputs, takes a different control path, or triggers
+  a different error compared to other configurations.
+- A connection-driven configuration where the connected node changes the processing logic and
+  produces different outputs (not just parameter metadata) — the runtime difference is observable
+  after loading a saved workflow.
 
 ### Column definitions
 
