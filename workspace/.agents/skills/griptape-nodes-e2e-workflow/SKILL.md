@@ -8,7 +8,7 @@ description: >-
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.3'
+  version: '0.4'
 ---
 
 # Building Test Workflows for Griptape Nodes
@@ -116,19 +116,46 @@ Always set the `message` parameter on assertion nodes to something descriptive �
 `"<NodeType>.<param_name> should equal <expected>"`. This makes failures easy to diagnose when the
 workflow is re-run later.
 
-### Use LoggerNode as a failure-path sink
+### Use CancelWorkflow for unexpected control paths
 
-When testing `SuccessFailureNode` error paths, connect the target node's `failure` control output
-to a `LoggerNode`'s hidden `exec_in` parameter. This gives the failure path somewhere to go,
-enabling the graceful failure behaviour (flow continues, `was_successful=False`).
+When a workflow tests a specific control branch, the *other* branch should never fire. Connect
+unexpected control outputs to a `CancelWorkflow` node (from `Griptape Nodes Library`). This crashes
+the flow with a descriptive error if the wrong branch is taken, making failures obvious in CI. Set
+`cancellation_reason` to explain which path was unexpected — e.g.
+`"Then branch should not fire when evaluate=false"`.
+
+**Example:** When testing `IfElse` with `evaluate=false`, the `Else` branch is expected. Connect
+`IfElse.Then → CancelWorkflow.exec_in` so the flow crashes if `Then` fires.
+
+### Route SuccessFailureNode failure to the assertion node
+
+When testing `SuccessFailureNode` **graceful failure** paths, connect the target node's `failure`
+control output directly to the assertion node's `exec_in`. This gives the failure path somewhere to
+go (enabling the graceful failure behaviour where `was_successful=False`), and also ensures the
+assertion runs when the failure path is taken. There is no need for a separate sink node.
+
+### Never connect assertion nodes' failure output
+
+Assertion nodes (`AssertEqual`, `AssertTrue`, `AssertStrings`, `AssertNumbers`) are
+`SuccessFailureNode`s with a `failure` control output. **Do not connect `failure` to anything.** If
+the assertion fails, the flow must crash — this is the correct behaviour for CI, where a crashed
+flow means a failed test. Connecting `failure` to a sink would make assertion failures graceful,
+producing false positives when workflows are re-run.
+
+### Never connect to hidden parameters
+
+Some nodes (e.g. `DataNode` subclasses like `LoggerNode`) hide their control parameters (`exec_in`,
+`exec_out`) via `ui_options["hide"]=True`. **Do not connect to hidden parameters.** The visual
+display shows "Hidden & Connected", which makes the workflow impossible to understand when opened
+in the editor. If you need a control-flow sink, use a node with visible control parameters (e.g.
+`CancelWorkflow`).
 
 ### Use the inspection report's helper nodes and observations first
 
 The inspection report provides two tables that eliminate most discovery work:
 
 - **Confirmed Helper Nodes** — lists every helper node validated during inspection, with library
-  name, parameter, and type. Use these directly for input providers, assertion nodes, and
-  failure-path sinks.
+  name, parameter, and type. Use these directly for input providers and assertion nodes.
 - **Runtime Observations** — lists confirmed input→output pairs for each configuration. Use these
   as expected values in assertion nodes.
 
@@ -156,9 +183,14 @@ These test that the node produces correct outputs for a given parameter configur
 4. If the configuration is connection-driven (e.g. `config_model_connected`): create the
    appropriate helper node and connect it.
 5. Create assertion nodes for each output parameter that should be verified. Wire the target node's
-   output to the assertion node's `actual` input. Set the assertion's `expected` value based on
-   what the node should produce for the given inputs.
-6. Execute and validate.
+   output to the assertion node's `actual` input. For the `expected` value, create an input
+   provider node of the matching type (e.g. `TextInput` for strings, `IntegerInput` for ints) and
+   connect it to the assertion's `expected` input. This makes expected values visible in the saved
+   workflow. **Do not** set `expected` as a PROPERTY via `SetParameterValueRequest` — `type="any"`
+   parameters have no UI widget, so the value would be invisible when reviewing the workflow.
+6. If the target node has multiple control outputs (e.g. `IfElse` with `Then`/`Else`), connect the
+   unexpected branch to a `CancelWorkflow` node with a descriptive `cancellation_reason`.
+7. Execute and validate.
 
 **Choosing expected values:** The inspection report's `## Runtime Observations` table contains
 confirmed input→output pairs from the live engine. **Use these as your primary source for expected
@@ -223,37 +255,39 @@ These verify that the node raises errors correctly during `process()`. These **a
 because the error conditions often depend on data flowing through connections at execution time.
 Each row in the inspect report's "Runtime errors" table has its own ID.
 
-**For SuccessFailureNode nodes — test both paths per error:**
+**For SuccessFailureNode nodes — one workflow per error, both paths wired:**
 
-**Graceful failure (failure output connected):**
+A `SuccessFailureNode` always routes through either `exec_out` (success) or `failure` (failure) —
+it never crashes. The test verifies that the expected path fires and the unexpected path does not.
 
 1. Create the target node.
-2. Create a `LoggerNode` and connect the target node's `failure` control output to the
-   `LoggerNode`'s `exec_in`.
-3. Set parameters to trigger the runtime error (per the "Condition" column).
-4. Create an `AssertTrue` node. Connect the target node's `was_successful` output to a `ToBool`
-   converter, then to `AssertTrue.value`. But wait — `was_successful` should be `False` on failure.
-   Instead, use `AssertEqual` with `expected = False` wired to the target node's `was_successful`.
-5. Optionally wire `result_details` to an `AssertStrings` node to verify the error message.
-6. Execute and validate — the flow should succeed (not crash), and the assertions should pass.
+2. Connect the target node's `failure` control output to an `AssertEqual` node's `exec_in`. This is
+   the expected path — it fires when the error condition triggers.
+3. Connect the target node's `exec_out` (success) control output to a `CancelWorkflow` node. This
+   is the unexpected path — if the node succeeds when it should fail, the flow crashes with a
+   descriptive error.
+4. Set parameters to trigger the runtime error (per the "Condition" column).
+5. Connect the target node's `was_successful` output to `AssertEqual.actual`. Create a `BoolInput`
+   node, set its value to `False`, and connect it to `AssertEqual.expected`. This asserts that the
+   target node reports failure.
+6. Optionally wire `result_details` to an `AssertStrings` node to verify the error message.
+7. Execute and validate — the flow should succeed (not crash), the failure path should fire, and
+   the assertions should pass.
+8. **Do not** connect the `AssertEqual`'s own `failure` output — if the assertion fails, the flow
+   should crash.
 
-Save this workflow as `<NodeType>__<row_id>_graceful.py` (e.g.
-`DictGetValueByKey__error_runtime_key_not_found_graceful.py`).
-
-**Hard failure (failure output not connected):**
-
-1. Create the target node (no `failure` connection).
-2. Set parameters to trigger the same runtime error.
-3. Execute — the flow should fail (crash).
-4. Confirm via the `StartFlowRequest` result or `GetNodeResolutionStateRequest`.
-
-Save this workflow as `<NodeType>__<row_id>_hard.py`.
+Save this workflow as `<NodeType>__<row_id>.py` (e.g.
+`DictGetValueByKey__error_runtime_key_not_found.py`).
 
 **For non-SuccessFailureNode nodes — hard failure only:**
 
+A `BaseNode` has no failure path — unhandled exceptions crash the flow. The test verifies the
+crash.
+
 1. Create the target node.
 2. Set parameters to trigger the runtime error.
-3. Execute — the flow should fail.
+3. Execute — the flow should crash.
+4. Confirm via the `StartFlowRequest` result or `GetNodeResolutionStateRequest`.
 
 Save as `<NodeType>__<row_id>.py`.
 
@@ -271,9 +305,10 @@ After building each workflow, validate it by running it:
 3. Check the result:
    - **Success result** — the workflow executed and all assertion nodes passed. Record as PASS.
    - **Failure result** — either the workflow errored or an assertion failed. For runtime error
-     tests that expect failure, a failure result is the correct outcome — record as PASS. For
-     configuration tests, a failure result means the workflow is broken — record as FAIL and
-     include the error details.
+     tests on `BaseNode` (non-SuccessFailureNode) targets that expect the flow to crash, a failure
+     result is the correct outcome — record as PASS. For all other workflows (configuration tests,
+     SuccessFailureNode error tests), a failure result means something is wrong — record as FAIL
+     and include the error details.
 
 ______________________________________________________________________
 
@@ -285,8 +320,8 @@ After a workflow passes validation:
    - `file_name` = `<NodeType>__<section_id>` (e.g. `AssertStrings__config_default`)
    - `display_name` = `<NodeType> — <section_id>` (e.g. `AssertStrings — config_default`)
 2. The response includes `file_path` — the full path where the engine saved the `.py` file.
-3. Copy the file to the workspace: `tests/<NodeType>/<section_id>.py`.
-4. Create the `tests/<NodeType>/` directory if it doesn't exist.
+3. Copy the file to the workspace: `workspace/tests/<NodeType>/<section_id>.py`.
+4. Create the `workspace/tests/<NodeType>/` directory if it doesn't exist.
 
 After saving, call `ClearAllObjectStateRequest` to reset the engine for the next workflow.
 
@@ -322,7 +357,7 @@ Generated on <date>.
 | config_operator_eq_contains | Configuration | PASS | tests/<NodeType>/config_operator_eq_contains.py |
 | error_design_time_input | Design-time | PASS (3/3 checks) | (no workflow) |
 | error_pre_execution_empty_key | Validation | PASS | tests/<NodeType>/error_pre_execution_empty_key.py |
-| error_runtime_key_not_found | Runtime | PASS | tests/<NodeType>/error_runtime_key_not_found_graceful.py, tests/<NodeType>/error_runtime_key_not_found_hard.py |
+| error_runtime_key_not_found | Runtime | PASS | tests/<NodeType>/error_runtime_key_not_found.py |
 
 ## Failures
 
@@ -335,28 +370,27 @@ ______________________________________________________________________
 
 For each testable section in the inspection report:
 
-```
 1. Read the section and its <!-- id: section_id --> comment.
 2. Determine the workflow type (configuration, design-time input handling, validation, runtime).
 3. If design-time input handling:
-   a. Copy confirmed results from inspect report to summary (do not re-run)
-   b. Re-run only if any row has Status: Discrepancy or Unknown
+   - Copy confirmed results from inspect report to summary (do not re-run)
+   - Re-run only if any row has Status: Discrepancy or Unknown
 4. If configuration, validation, or runtime:
-   a. EnsureWorkflowAndFlowRequest (display_name = "<NodeType> — <section_id>")
-   b. CreateNodeRequest for target node
-   c. CreateNodeRequest for input providers
-   d. SetParameterValueRequest to configure all nodes
-   e. CreateNodeRequest for assertion nodes (or LoggerNode for error paths)
-   f. SetParameterValueRequest for assertion expected values and messages
-   g. CreateConnectionRequest to wire everything
-   h. AutoLayoutFlowRequest
-   i. StartFlowRequest (wait_for_completion = true)
-   j. Check result — PASS or FAIL
-   k. SaveWorkflowRequest (file_name = "<NodeType>__<section_id>")
-   l. Copy saved file to tests/<NodeType>/<section_id>.py
-   m. ClearAllObjectStateRequest
+   - EnsureWorkflowAndFlowRequest (display_name = "<NodeType> — \<section_id>")
+   - CreateNodeRequest for target node
+   - CreateNodeRequest for input providers
+   - SetParameterValueRequest to configure all nodes
+   - CreateNodeRequest for assertion nodes, CancelWorkflow for unexpected paths
+   - SetParameterValueRequest for assertion expected values and messages (use input provider nodes
+     for expected values, not direct PROPERTY sets)
+   - CreateConnectionRequest to wire everything
+   - AutoLayoutFlowRequest
+   - StartFlowRequest (wait_for_completion = true)
+   - Check result — PASS or FAIL
+   - SaveWorkflowRequest (file_name = "<NodeType>\_\_\<section_id>")
+   - Copy saved file to tests/<NodeType>/\<section_id>.py
+   - ClearAllObjectStateRequest
 5. After all sections: write summary report.
-```
 
 ______________________________________________________________________
 
@@ -402,7 +436,7 @@ ______________________________________________________________________
   includes the library name for every helper. The inspection report's header includes the library
   name for the target node.
 
-- **SuccessFailureNode error tests produce two workflows.** Every runtime error on a
-  `SuccessFailureNode` needs both a graceful-path workflow (failure connected) and a hard-failure
-  workflow (failure not connected). Name them with `_graceful` and `_hard` suffixes after the row
-  ID from the inspect report's error table.
+- **SuccessFailureNode error tests wire both paths.** Every runtime error on a `SuccessFailureNode`
+  gets one workflow with both `failure` (→ assertion) and `exec_out` (→ `CancelWorkflow`)
+  connected. The flow succeeds if the expected failure path fires; it crashes if the unexpected
+  success path fires.

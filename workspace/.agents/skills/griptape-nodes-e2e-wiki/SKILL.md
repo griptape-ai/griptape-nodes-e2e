@@ -86,17 +86,18 @@ Nodes that convert the output of the node under test into a type suitable for as
 
 Nodes that branch or sequence execution in a test workflow.
 
-| Node     | Reference page                                             | One-line summary                                                       |
-| -------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `IfElse` | [if-else.md](references/nodes/standard-library/if-else.md) | Branch workflow on a boolean; optionally pass through a selected value |
+| Node             | Reference page                                                             | One-line summary                                                       |
+| ---------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `IfElse`         | [if-else.md](references/nodes/standard-library/if-else.md)                 | Branch workflow on a boolean; optionally pass through a selected value |
+| `CancelWorkflow` | [cancel-workflow.md](references/nodes/standard-library/cancel-workflow.md) | Crash the flow unconditionally — sentinel for unexpected control paths |
 
 ### Utility — `Griptape Nodes Library`
 
 Nodes useful as sinks, probes, or helpers in test workflows.
 
-| Node         | Reference page                                                     | One-line summary                                                    |
-| ------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `LoggerNode` | [logger-node.md](references/nodes/standard-library/logger-node.md) | Log messages; `any`-type passthrough; usable as a failure-path sink |
+| Node         | Reference page                                                     | One-line summary                                                        |
+| ------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `LoggerNode` | [logger-node.md](references/nodes/standard-library/logger-node.md) | Log messages; `any`-type passthrough for debug probes and generic sinks |
 
 ### Output Extractors — `Griptape Nodes Library`
 

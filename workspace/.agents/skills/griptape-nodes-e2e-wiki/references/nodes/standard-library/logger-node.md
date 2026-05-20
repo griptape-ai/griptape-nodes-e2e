@@ -34,19 +34,10 @@ line).
   test's output to `passthrough` to force evaluation without type constraints.
 - You want to **inspect a value during debugging** — the `output` parameter shows the formatted log
   message on the node, and the message is also written to the console logger.
-- You need a node with a **control input** (`exec_in`, hidden) to act as a downstream receiver for
-  a `failure` control output on a `SuccessFailureNode` under test. Since `DataNode` hides its
-  control parameters, you'll need to connect to the hidden `exec_in`.
 
 ## Example Wiring
 
 ```
 NodeUnderTest.some_output  →  LoggerNode.passthrough
 (set LoggerNode.log_message = "checkpoint reached" as PROPERTY)
-```
-
-As a failure-path sink for a SuccessFailureNode:
-
-```
-SuccessFailureNodeUnderTest.failure  →  LoggerNode.exec_in
 ```
