@@ -15,11 +15,11 @@ metadata:
 
 ## Purpose
 
-Given a target node's inspection report (`inspections/<NodeType>.inspect.md`), build one test
-workflow per testable section. Each workflow exercises a specific aspect of the node — a parameter
-configuration, a design-time input handling check, a validation rule, or a runtime error condition.
-Workflows are built, executed against the live engine for validation, and saved as reusable `.py`
-workflow files.
+Given a target node's inspection report (`workspace/inspections/<NodeType>.inspect.md`), build one
+test workflow per testable section. Each workflow exercises a specific aspect of the node — a
+parameter configuration, a design-time input handling check, a validation rule, or a runtime error
+condition. Workflows are built, executed against the live engine for validation, and saved as
+reusable `.py` workflow files.
 
 This skill creates engine-native workflows that can be loaded and re-run via
 `RunWorkflowFromScratchRequest` at any time.
@@ -30,8 +30,9 @@ ______________________________________________________________________
 
 Before starting, read these documents:
 
-1. **Inspection report** — `inspections/<NodeType>.inspect.md`. This is the primary input. Each
-   testable section has an `<!-- id: section_id -->` comment that becomes the workflow filename.
+1. **Inspection report** — `workspace/inspections/<NodeType>.inspect.md`. This is the primary
+   input. Each testable section has an `<!-- id: section_id -->` comment that becomes the workflow
+   filename.
 2. **Confirmed Helper Nodes** — the inspection report's `## Confirmed Helper Nodes` table lists
    every helper node (input providers, assertion nodes, failure-path sinks) that was validated
    during inspection. **Use these directly** — do not re-discover helper nodes via
@@ -305,7 +306,8 @@ ______________________________________________________________________
 
 ## Output Format
 
-After processing all sections, write a summary report to `inspections/<NodeType>.workflows.md`.
+After processing all sections, write a summary report to
+`workspace/inspections/<NodeType>.workflows.md`.
 
 ```markdown
 # <NodeType> — Workflow Summary

@@ -19,20 +19,21 @@ full parameter surface against a live engine — including dynamic parameters th
 configurations (value-driven, connection-driven, and UI-message-driven).
 
 The output is a structured markdown file saved to the workspace at
-`inspections/<NodeType>.inspect.md`. Downstream agents or humans use this document to plan test
-workflows or generate scripts; this skill is not concerned with how the output is consumed.
+`workspace/inspections/<NodeType>.inspect.md`. Downstream agents or humans use this document to
+plan test workflows or generate scripts; this skill is not concerned with how the output is
+consumed.
 
 ______________________________________________________________________
 
 ## Survey Input
 
-Before starting live exploration, read the survey document at `inspections/<NodeType>.survey.md`.
-It lists all configuration axes discovered by static analysis and predicts the parameter surface
-for each.
+Before starting live exploration, read the survey document at
+`workspace/inspections/<NodeType>.survey.md`. It lists all configuration axes discovered by static
+analysis and predicts the parameter surface for each.
 
-A survey document is **required**. If `inspections/<NodeType>.survey.md` does not exist, stop and
-run the `griptape-nodes-e2e-survey` skill first. The survey provides the configuration axes to
-explore — without it, the inspection cannot systematically cover all parameter mutations.
+A survey document is **required**. If `workspace/inspections/<NodeType>.survey.md` does not exist,
+stop and run the `griptape-nodes-e2e-survey` skill first. The survey provides the configuration
+axes to explore — without it, the inspection cannot systematically cover all parameter mutations.
 
 Use the survey to guide exploration:
 
@@ -89,8 +90,8 @@ ______________________________________________________________________
 
 ### Step 0: Read the survey document
 
-Read `inspections/<NodeType>.survey.md` and use it to plan your exploration. Note all configuration
-axes listed.
+Read `workspace/inspections/<NodeType>.survey.md` and use it to plan your exploration. Note all
+configuration axes listed.
 
 ### Step 1: Clear engine state
 
@@ -283,7 +284,7 @@ ______________________________________________________________________
 
 ## Output Format
 
-Save the inspection report to `inspections/<NodeType>.inspect.md`.
+Save the inspection report to `workspace/inspections/<NodeType>.inspect.md`.
 
 Structure:
 

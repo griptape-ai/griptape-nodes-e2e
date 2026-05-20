@@ -287,7 +287,8 @@ ______________________________________________________________________
 
 ## Output Format
 
-Save the survey document to `inspections/<NodeType>.survey.md`.
+Save the survey document to `workspace/inspections/<NodeType>.survey.md` (relative to the project
+root, **not** relative to the skill directory).
 
 Structure:
 
