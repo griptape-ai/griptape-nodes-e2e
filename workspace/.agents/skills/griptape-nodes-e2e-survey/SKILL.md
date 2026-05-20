@@ -3,11 +3,13 @@ name: griptape-nodes-e2e-survey
 description: >-
   Given a node class name, locate its source code via MCP tools and analyse it to enumerate all
   parameter configurations — value-driven, connection-driven, and UI-message-driven. Produces a
-  survey document that guides the inspect skill's live exploration.
+  survey document that guides the inspect skill's live exploration. When invoking as a subagent,
+  the task prompt must supply the absolute path to the output root directory — the skill cannot
+  ask interactively.
 compatibility: Requires an MCP connection to a running griptape-nodes engine (extended tools mode).
 metadata:
   author: the-foundry-visionmongers
-  version: '0.4'
+  version: '0.5'
 ---
 
 # Surveying Griptape Nodes
@@ -22,6 +24,23 @@ a live engine.
 A configuration axis is anything that changes the node's parameter surface at design time —
 dropdown values, slider positions, boolean toggles, incoming connections, UI buttons, or batch
 transitions. The survey captures all of these uniformly.
+
+______________________________________________________________________
+
+## Output Root
+
+Before starting any work, establish the **absolute path** to the output root directory using this
+priority order:
+
+1. If the path is explicitly stated in your task prompt, use it exactly as given.
+2. Otherwise, **stop immediately** and ask before doing anything else.
+
+Do not infer, guess, or silently default to the current working directory or any path derived from
+it. If you are running as a subagent and no path was provided, return a message to the orchestrator
+stating that the output root is required before you can proceed.
+
+Inspections are saved to `{output_root}/inspections/`. Store the confirmed path and use it for all
+file reads and writes throughout this skill.
 
 ______________________________________________________________________
 
@@ -302,8 +321,7 @@ ______________________________________________________________________
 
 ## Output Format
 
-Save the survey document to `workspace/inspections/<NodeType>.survey.md` (relative to the project
-root, **not** relative to the skill directory).
+Save the survey document to `{output_root}/inspections/<NodeType>.survey.md`.
 
 Structure:
 

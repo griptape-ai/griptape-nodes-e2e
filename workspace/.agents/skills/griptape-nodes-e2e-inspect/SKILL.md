@@ -3,11 +3,13 @@ name: griptape-nodes-e2e-inspect
 description: >-
   Confirm a Griptape Node's parameter configurations against a live engine via MCP tools,
   guided by a survey document from the griptape-nodes-e2e-survey skill. Produces a structured
-  markdown inspection report with live-confirmed parameter details for each configuration.
+  markdown inspection report with live-confirmed parameter details for each configuration. When
+  invoking as a subagent, the task prompt must supply the absolute path to the output root
+  directory — the skill cannot ask interactively.
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.8'
+  version: '0.9'
 ---
 
 # Inspecting Griptape Nodes
@@ -18,22 +20,40 @@ Given a target node type (e.g. `AssertStrings` in `Griptape Nodes Testing Librar
 full parameter surface against a live engine — including dynamic parameters that change across
 configurations (value-driven, connection-driven, and UI-message-driven).
 
-The output is a structured markdown file saved to the workspace at
-`workspace/inspections/<NodeType>.inspect.md`. Downstream agents or humans use this document to
+The output is a structured markdown file saved to
+`{output_root}/inspections/<NodeType>.inspect.md`. Downstream agents or humans use this document to
 plan test workflows or generate scripts; this skill is not concerned with how the output is
 consumed.
+
+______________________________________________________________________
+
+## Output Root
+
+Before starting any work, establish the **absolute path** to the output root directory using this
+priority order:
+
+1. If the path is explicitly stated in your task prompt, use it exactly as given.
+2. Otherwise, **stop immediately** and ask before doing anything else.
+
+Do not infer, guess, or silently default to the current working directory or any path derived from
+it. If you are running as a subagent and no path was provided, return a message to the orchestrator
+stating that the output root is required before you can proceed.
+
+Inspections are read from and saved to `{output_root}/inspections/`. Store the confirmed path and
+use it for all file reads and writes throughout this skill.
 
 ______________________________________________________________________
 
 ## Survey Input
 
 Before starting live exploration, read the survey document at
-`workspace/inspections/<NodeType>.survey.md`. It lists all configuration axes discovered by static
-analysis and predicts the parameter surface for each.
+`{output_root}/inspections/<NodeType>.survey.md`. It lists all configuration axes discovered by
+static analysis and predicts the parameter surface for each.
 
-A survey document is **required**. If `workspace/inspections/<NodeType>.survey.md` does not exist,
-stop and run the `griptape-nodes-e2e-survey` skill first. The survey provides the configuration
-axes to explore — without it, the inspection cannot systematically cover all parameter mutations.
+A survey document is **required**. If `{output_root}/inspections/<NodeType>.survey.md` does not
+exist, stop and run the `griptape-nodes-e2e-survey` skill first. The survey provides the
+configuration axes to explore — without it, the inspection cannot systematically cover all
+parameter mutations.
 
 Use the survey to guide exploration:
 
@@ -90,7 +110,7 @@ ______________________________________________________________________
 
 ### Step 0: Read the survey document
 
-Read `workspace/inspections/<NodeType>.survey.md` and use it to plan your exploration. Note all
+Read `{output_root}/inspections/<NodeType>.survey.md` and use it to plan your exploration. Note all
 configuration axes listed.
 
 ### Step 1: Clear engine state
@@ -284,7 +304,7 @@ ______________________________________________________________________
 
 ## Output Format
 
-Save the inspection report to `workspace/inspections/<NodeType>.inspect.md`.
+Save the inspection report to `{output_root}/inspections/<NodeType>.inspect.md`.
 
 Structure:
 

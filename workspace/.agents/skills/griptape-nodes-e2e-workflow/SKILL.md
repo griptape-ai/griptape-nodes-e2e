@@ -3,8 +3,9 @@ name: griptape-nodes-e2e-workflow
 description: >-
   Build, validate, and save test workflows for a Griptape Node via MCP tools, driven by the
   inspection report from the griptape-nodes-e2e-inspect skill. Produces one saved workflow per
-  testable section — configuration tests, design-time input handling checks, validation tests, and runtime
-  error tests.
+  testable section — configuration tests, design-time input handling checks, validation tests, and
+  runtime error tests. When invoking as a subagent, the task prompt must supply the absolute path
+  to the output root directory — the skill cannot ask interactively.
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
@@ -15,8 +16,8 @@ metadata:
 
 ## Purpose
 
-Given a target node's inspection report (`workspace/inspections/<NodeType>.inspect.md`), build one
-test workflow per testable section. Each workflow exercises a specific aspect of the node — a
+Given a target node's inspection report (`{output_root}/inspections/<NodeType>.inspect.md`), build
+one test workflow per testable section. Each workflow exercises a specific aspect of the node — a
 parameter configuration, a design-time input handling check, a validation rule, or a runtime error
 condition. Workflows are built, executed against the live engine for validation, and saved as
 reusable `.py` workflow files.
@@ -26,13 +27,31 @@ This skill creates engine-native workflows that can be loaded and re-run via
 
 ______________________________________________________________________
 
+## Output Root
+
+Before starting any work, establish the **absolute path** to the output root directory using this
+priority order:
+
+1. If the path is explicitly stated in your task prompt, use it exactly as given.
+2. Otherwise, **stop immediately** and ask before doing anything else.
+
+Do not infer, guess, or silently default to the current working directory or any path derived from
+it. If you are running as a subagent and no path was provided, return a message to the orchestrator
+stating that the output root is required before you can proceed.
+
+Inspections are read from `{output_root}/inspections/` and test workflows are saved to
+`{output_root}/tests/`. Store the confirmed path and use it for all file reads and writes
+throughout this skill.
+
+______________________________________________________________________
+
 ## Input
 
 Before starting, read these documents:
 
-1. **Inspection report** — `workspace/inspections/<NodeType>.inspect.md`. This is the primary
-   input. Each testable section has an `<!-- id: section_id -->` comment that becomes the workflow
-   filename.
+1. **Inspection report** — `{output_root}/inspections/<NodeType>.inspect.md`. This is the primary
+   input. Each testable section has a metadata line (`**ID:** ... · **Testability:** ...`) whose ID
+   value becomes the workflow filename.
 2. **Confirmed Helper Nodes** — the inspection report's `## Confirmed Helper Nodes` table lists
    every helper node (input providers, assertion nodes, failure-path sinks) that was validated
    during inspection. **Use these directly** — do not re-discover helper nodes via
@@ -320,8 +339,8 @@ After a workflow passes validation:
    - `file_name` = `<NodeType>__<section_id>` (e.g. `AssertStrings__config_default`)
    - `display_name` = `<NodeType> — <section_id>` (e.g. `AssertStrings — config_default`)
 2. The response includes `file_path` — the full path where the engine saved the `.py` file.
-3. Copy the file to the workspace: `workspace/tests/<NodeType>/<section_id>.py`.
-4. Create the `workspace/tests/<NodeType>/` directory if it doesn't exist.
+3. Copy the file to `{output_root}/tests/<NodeType>/<section_id>.py`.
+4. Create the `{output_root}/tests/<NodeType>/` directory if it doesn't exist.
 
 After saving, call `ClearAllObjectStateRequest` to reset the engine for the next workflow.
 
@@ -342,7 +361,7 @@ ______________________________________________________________________
 ## Output Format
 
 After processing all sections, write a summary report to
-`workspace/inspections/<NodeType>.workflows.md`.
+`{output_root}/inspections/<NodeType>.workflows.md`.
 
 ```markdown
 # <NodeType> — Workflow Summary
@@ -353,11 +372,11 @@ Generated on <date>.
 
 | Section ID | Type | Status | Workflow File |
 |------------|------|--------|---------------|
-| config_default | Configuration | PASS | tests/<NodeType>/config_default.py |
-| config_operator_eq_contains | Configuration | PASS | tests/<NodeType>/config_operator_eq_contains.py |
+| config_default | Configuration | PASS | {output_root}/tests/<NodeType>/config_default.py |
+| config_operator_eq_contains | Configuration | PASS | {output_root}/tests/<NodeType>/config_operator_eq_contains.py |
 | error_design_time_input | Design-time | PASS (3/3 checks) | (no workflow) |
-| error_pre_execution_empty_key | Validation | PASS | tests/<NodeType>/error_pre_execution_empty_key.py |
-| error_runtime_key_not_found | Runtime | PASS | tests/<NodeType>/error_runtime_key_not_found.py |
+| error_pre_execution_empty_key | Validation | PASS | {output_root}/tests/<NodeType>/error_pre_execution_empty_key.py |
+| error_runtime_key_not_found | Runtime | PASS | {output_root}/tests/<NodeType>/error_runtime_key_not_found.py |
 
 ## Failures
 
