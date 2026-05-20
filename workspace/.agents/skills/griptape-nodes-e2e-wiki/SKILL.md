@@ -63,6 +63,12 @@ every link goes straight to the leaf page.
 | `AssertNumbers`    | [assert-numbers.md](references/nodes/testing-library/assert-numbers.md)         | Numeric comparison with `==`, `!=`, `<`, `>`, `<=`, `>=`                           |
 | `AssertFileExists` | [assert-file-exists.md](references/nodes/testing-library/assert-file-exists.md) | Assert a file exists at a given path                                               |
 
+### Error Handling — `Griptape Nodes Testing Library`
+
+| Node            | Reference page                                                            | One-line summary                                                                 |
+| --------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `TryCatchGroup` | [try-catch-group.md](references/nodes/testing-library/try-catch-group.md) | Catch child node exceptions; route to Succeeded/Failed with error message output |
+
 ### Input Providers — `Griptape Nodes Library`
 
 Nodes that furnish literal values to the node under test's input parameters.

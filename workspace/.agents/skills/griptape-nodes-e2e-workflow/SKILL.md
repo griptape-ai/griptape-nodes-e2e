@@ -9,7 +9,7 @@ description: >-
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
-  version: '0.4'
+  version: '0.5'
 ---
 
 # Building Test Workflows for Griptape Nodes
@@ -316,15 +316,28 @@ it never crashes. The test verifies that the expected path fires and the unexpec
 Save this workflow as `<NodeType>__<row_id>.py` (e.g.
 `DictGetValueByKey__error_runtime_key_not_found.py`).
 
-**For non-SuccessFailureNode nodes — hard failure only:**
+**For non-SuccessFailureNode nodes — wrap in TryCatchGroup:**
 
-A `BaseNode` has no failure path — unhandled exceptions crash the flow. The test verifies the
-crash.
+A `BaseNode` has no failure path — unhandled exceptions crash the flow. To test that the error is
+raised correctly while keeping the overall workflow passing, wrap the target node inside a
+`TryCatchGroup` (from `Griptape Nodes Testing Library`). The group catches the exception and routes
+control flow to Succeeded/Failed, just like a SuccessFailureNode.
 
-1. Create the target node.
-2. Set parameters to trigger the runtime error.
-3. Execute — the flow should crash.
-4. Confirm via the `StartFlowRequest` result or `GetNodeResolutionStateRequest`.
+1. Create a `TryCatchGroup` node.
+2. Create the target node **inside** the TryCatchGroup group.
+3. Set the target node's parameters to trigger the runtime error (per the "Condition" column).
+4. Connect the TryCatchGroup's `failure` control output to an `AssertStrings` node's `exec_in`.
+   This is the expected path — it fires when the child node raises an exception.
+5. Connect the TryCatchGroup's `exec_out` (Succeeded) control output to a `CancelWorkflow` node.
+   This is the unexpected path — if the child node succeeds when it should fail, the flow crashes
+   with a descriptive error.
+6. Connect the TryCatchGroup's `error_message` output to `AssertStrings.actual`. Create a
+   `TextInput` node with the expected error substring and connect it to `AssertStrings.expected`.
+   Set `AssertStrings.operator` to `contains`.
+7. Execute and validate — the flow should succeed (not crash), the failure path should fire, and
+   the assertion on the error message should pass.
+8. **Do not** connect the `AssertStrings`'s own `failure` output — if the assertion fails, the flow
+   should crash.
 
 Save as `<NodeType>__<row_id>.py`.
 
@@ -341,11 +354,8 @@ After building each workflow, validate it by running it:
    (30000 ms for simple workflows, longer for complex ones).
 3. Check the result:
    - **Success result** — the workflow executed and all assertion nodes passed. Record as PASS.
-   - **Failure result** — either the workflow errored or an assertion failed. For runtime error
-     tests on `BaseNode` (non-SuccessFailureNode) targets that expect the flow to crash, a failure
-     result is the correct outcome — record as PASS. For all other workflows (configuration tests,
-     SuccessFailureNode error tests), a failure result means something is wrong — record as FAIL
-     and include the error details.
+   - **Failure result** — either the workflow errored or an assertion failed. A failure result
+     means something is wrong — record as FAIL and include the error details.
 
 ______________________________________________________________________
 
