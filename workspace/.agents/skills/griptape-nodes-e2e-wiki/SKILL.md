@@ -34,13 +34,17 @@ ______________________________________________________________________
 
 Start here when you know the output type of the node under test and need to pick an assertion node.
 
-| Output type of node under test | Recommended assertion node(s)                                                                                                                                          |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `str`                          | [AssertStrings](references/nodes/testing-library/assert-strings.md) (rich operators), [AssertEqual](references/nodes/testing-library/assert-equal.md) (exact equality) |
-| `float` / `int`                | [AssertNumbers](references/nodes/testing-library/assert-numbers.md)                                                                                                    |
-| `bool`                         | [AssertTrue](references/nodes/testing-library/assert-true.md), [AssertEqual](references/nodes/testing-library/assert-equal.md)                                         |
-| `any` (unknown / mixed)        | [AssertEqual](references/nodes/testing-library/assert-equal.md), [AssertTrue](references/nodes/testing-library/assert-true.md)                                         |
-| file / path                    | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             |
+| Output type of node under test | Recommended assertion node(s)                                                                                                                                          | Recommended input provider(s)                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `str`                          | [AssertStrings](references/nodes/testing-library/assert-strings.md) (rich operators), [AssertEqual](references/nodes/testing-library/assert-equal.md) (exact equality) | [TextInput](references/nodes/standard-library/text-input.md)                                                                        |
+| `float` / `int`                | [AssertNumbers](references/nodes/testing-library/assert-numbers.md)                                                                                                    | [FloatInput](references/nodes/standard-library/float-input.md) / [IntegerInput](references/nodes/standard-library/integer-input.md) |
+| `bool`                         | [AssertTrue](references/nodes/testing-library/assert-true.md), [AssertEqual](references/nodes/testing-library/assert-equal.md)                                         | [BoolInput](references/nodes/standard-library/bool-input.md)                                                                        |
+| `list`                         | [GetListLength](references/nodes/standard-library/get-list-length.md), [GetFromList](references/nodes/standard-library/get-from-list.md) + type-specific assertion     | [CreateList](references/nodes/standard-library/create-list.md)                                                                      |
+| `dict`                         | [DictGetValueByKey](references/nodes/standard-library/dict-get-value-by-key.md) + type-specific assertion                                                              | [Dictionary](references/nodes/standard-library/dictionary.md)                                                                       |
+| `json`                         | [JsonExtractValue](references/nodes/standard-library/json-extract-value.md) + type-specific assertion                                                                  | [JsonInput](references/nodes/standard-library/json-input.md)                                                                        |
+| `ImageUrlArtifact`             | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | [CreateColorBars](references/nodes/standard-library/create-color-bars.md)                                                           |
+| `any` (unknown / mixed)        | [AssertEqual](references/nodes/testing-library/assert-equal.md), [AssertTrue](references/nodes/testing-library/assert-true.md)                                         | —                                                                                                                                   |
+| file / path                    | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | —                                                                                                                                   |
 
 ______________________________________________________________________
 
@@ -63,13 +67,18 @@ every link goes straight to the leaf page.
 
 Nodes that furnish literal values to the node under test's input parameters.
 
-| Node           | Reference page                                                         | One-line summary                           |
-| -------------- | ---------------------------------------------------------------------- | ------------------------------------------ |
-| `TextInput`    | [text-input.md](references/nodes/standard-library/text-input.md)       | Provides a literal `str` value             |
-| `FloatInput`   | [float-input.md](references/nodes/standard-library/float-input.md)     | Provides a literal `float` value           |
-| `IntegerInput` | [integer-input.md](references/nodes/standard-library/integer-input.md) | Provides a literal `int` value             |
-| `BoolInput`    | [bool-input.md](references/nodes/standard-library/bool-input.md)       | Provides a literal `bool` value            |
-| `MergeTexts`   | [merge-texts.md](references/nodes/standard-library/merge-texts.md)     | Merge up to 4 text inputs with a separator |
+| Node              | Reference page                                                                 | One-line summary                                               |
+| ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `TextInput`       | [text-input.md](references/nodes/standard-library/text-input.md)               | Provides a literal `str` value                                 |
+| `FloatInput`      | [float-input.md](references/nodes/standard-library/float-input.md)             | Provides a literal `float` value                               |
+| `IntegerInput`    | [integer-input.md](references/nodes/standard-library/integer-input.md)         | Provides a literal `int` value                                 |
+| `BoolInput`       | [bool-input.md](references/nodes/standard-library/bool-input.md)               | Provides a literal `bool` value                                |
+| `MergeTexts`      | [merge-texts.md](references/nodes/standard-library/merge-texts.md)             | Merge up to 4 text inputs with a separator                     |
+| `JsonInput`       | [json-input.md](references/nodes/standard-library/json-input.md)               | Provides a literal `json` / `dict` value via property          |
+| `CreateColorBars` | [create-color-bars.md](references/nodes/standard-library/create-color-bars.md) | Generates a test pattern `ImageUrlArtifact` (no external deps) |
+| `CreateList`      | [create-list.md](references/nodes/standard-library/create-list.md)             | Build a `list` from expandable item slots                      |
+| `Dictionary`      | [dictionary.md](references/nodes/standard-library/dictionary.md)               | Build a multi-key `dict` by zipping key and value lists        |
+| `KeyValuePair`    | [key-value-pair.md](references/nodes/standard-library/key-value-pair.md)       | Build a single-entry `dict` from editable key + value props    |
 
 ### Type Converters — `Griptape Nodes Library`
 
