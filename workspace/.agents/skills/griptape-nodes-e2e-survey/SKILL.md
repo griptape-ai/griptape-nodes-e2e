@@ -91,20 +91,30 @@ Read the Python file at the resolved path.
 
 ### Step 5: Follow the inheritance chain
 
+**Critical path rule:** Any file whose module path starts with `griptape_nodes.` is part of the
+engine package. Always read these from the path returned by `GetEngineSourceInfoRequest` — never
+from a `.venv` directory or from within the library directory tree. The library directory may
+contain a `.venv/` with an installed copy of the engine; ignore it entirely.
+
 If the node inherits from a base class:
 
-- **Within the same library** — follow the import and read the parent class file.
-- **From the engine** (`griptape_nodes.exe_types`) — read the base class from the engine source
-  directory returned by `GetEngineSourceInfoRequest`. The relevant files are under `exe_types/`
-  (e.g. `node_types.py` for `BaseNode`, `DataNode`, `ControlNode`, `SuccessFailureNode`). Common
-  base classes:
+- **Within the same library** — follow the import and read the parent class file. Resolve the file
+  relative to the library directory (from `GetLibrarySourceInfoRequest`). Never descend into any
+  `.venv/` subdirectory.
+- **From the engine** (any `griptape_nodes.*` module) — read the file from the engine source
+  directory returned by `GetEngineSourceInfoRequest`. The `package_directory` it returns is the
+  root of the `griptape_nodes` package; append the module subpath to reach any engine file. For
+  example, `griptape_nodes.exe_types.param_components.project_file_parameter` →
+  `{package_directory}/exe_types/param_components/project_file_parameter.py`. Common base classes
+  under `exe_types/node_types.py`:
   - `BaseNode` — minimal, no extra parameters.
   - `DataNode` — adds hidden control parameters (`exec_in`, `exec_out`).
   - `SuccessFailureNode` — adds control parameters (`exec_in`, `exec_out`, `failure`). Subclasses
     typically also call `_create_status_parameters()` to add `was_successful` and `result_details`.
 
 Stop following the chain when you reach an engine base class (these are well-known and don't need
-further traversal).
+further traversal). You may still need to read other engine files (components, mixins, helpers)
+encountered in the node source — apply the same path rule.
 
 ______________________________________________________________________
 
