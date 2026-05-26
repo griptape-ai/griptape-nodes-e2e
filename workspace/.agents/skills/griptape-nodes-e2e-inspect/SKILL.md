@@ -237,28 +237,45 @@ testing the next rule, or delete and recreate the node.
 
 For each runtime error listed in the survey:
 
-**If the node is a SuccessFailureNode:** Test both paths:
+**If the node is a SuccessFailureNode:** SuccessFailureNode runtime errors fall into two categories
+that both set `was_successful=False` and `result_details` but differ in which control output is
+taken. You must determine which applies before the workflow skill can write the correct test:
 
-1. **Graceful failure (Failed output connected):**
+- **Graceful failure** — the error reaches `_handle_failure_exception`; routes through `failure`
+  when connected, crashes the flow when not connected.
+- **Status-only failure** — the error sets `was_successful=False` directly without calling
+  `_handle_failure_exception`; always routes through `exec_out` regardless of whether `failure` is
+  connected.
 
-   - Create a helper node with a control input to receive the `failure` output. Use the
-     `griptape-nodes-e2e-wiki` skill to find a suitable failure-path sink (e.g. `LoggerNode` has a
-     hidden `exec_in`).
-   - Connect the target node's `failure` control output to the helper node's `exec_in`.
+**Critical:** `ResolveNodeRequest` cannot tell you which control output was taken — it executes the
+node in isolation and never propagates execution to downstream nodes. A downstream sink node being
+UNRESOLVED after `ResolveNodeRequest` is not evidence that the `failure` branch was skipped; it
+only means `ResolveNodeRequest` does not follow control outputs at all. Use a full flow execution
+instead:
+
+1. **Determine routing (graceful failure vs. status-only failure):**
+
+   - Create a fresh full mini-flow: the target node, a sink connected to `failure` (e.g.
+     `LoggerNode` on its `exec_in`), and a second sink connected to `exec_out`.
    - Set the target node's parameters to trigger the runtime error.
-   - Call `ResolveNodeRequest` on the target node.
-   - Confirm the resolve succeeds (flow did not crash).
-   - Call `GetParameterValueRequest` for `was_successful` — confirm it is `False`.
-   - Call `GetParameterValueRequest` for `result_details` — confirm it contains a meaningful error
-     message.
-   - Disconnect and delete the helper node.
+   - Call `StartFlowRequest(wait_for_completion=true)` to execute the flow.
+   - After completion, call `GetNodeResolutionStateRequest` on both sinks:
+     - **`failure` sink resolved** → **graceful failure**. Record: "Flow continues along `failure`
+       branch; `was_successful=False`; `result_details=<message>`".
+     - **`exec_out` sink resolved** (failure sink did not) → **status-only failure**. Record: "Flow
+       continues along `exec_out`; `was_successful=False`; `failure` branch never taken".
+   - Also call `GetParameterValueRequest` for `was_successful` and `result_details` to capture the
+     exact values regardless of which branch fired.
 
-2. **Hard failure (Failed output not connected):**
+2. **Hard failure (graceful failure errors only):**
+
+   Status-only failures always route through `exec_out` and cannot crash the flow, so skip this
+   sub-step for them. For **graceful failure** errors only:
 
    - Ensure the target node's `failure` output has no connections.
    - Set the target node's parameters to trigger the same runtime error.
-   - Call `ResolveNodeRequest` on the target node.
-   - Confirm the result is a failure (the flow errored).
+   - Call `StartFlowRequest(wait_for_completion=true)`.
+   - Confirm the flow errored.
 
 **If the node is not a SuccessFailureNode:** Test the hard failure only:
 
@@ -585,10 +602,13 @@ ______________________________________________________________________
   exploration) may leave the node in a specific configuration. Step 6 (runtime validation and error
   exploration) should start with a clean node to avoid interference.
 
-- **SuccessFailureNode requires two tests per error.** Every runtime error on a
-  `SuccessFailureNode` produces different behaviour depending on whether the `failure` output is
-  connected. Test both: the graceful path (connected — flow continues, `was_successful=False`) and
-  the hard failure path (not connected — flow errors). Both are valid, testable outcomes.
+- **SuccessFailureNode errors fall into two categories — confirm which before recording.** Graceful
+  failures (via `_handle_failure_exception`) route through `failure` when connected and crash when
+  not; status-only failures (direct `_set_status_results` calls) always route through `exec_out`
+  regardless of connections. Use `StartFlowRequest(wait_for_completion=true)` with sinks on both
+  outputs and check `GetNodeResolutionStateRequest` on each sink to determine which applies. Do not
+  infer routing from `ResolveNodeRequest` — it never propagates to downstream nodes so sink
+  resolution state is meaningless after a `ResolveNodeRequest` call.
 
 - **Design-time input handling happens at set time, not execution time.** All behaviour in §6c
   (coercion, normalisation, value transformation) is triggered by `SetParameterValueRequest`, not
