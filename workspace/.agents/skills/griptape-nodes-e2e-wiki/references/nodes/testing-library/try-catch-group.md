@@ -34,15 +34,21 @@ SuccessFailureNode base class.
 
 ## Important Limitations
 
-- Only catches exceptions that escape the child node's `process()` method. Nodes that swallow their
-  own exceptions internally (e.g. `ExecutePython`) will appear as successes to TryCatchGroup.
-- Nodes based on `SuccessFailureNode` that have their `failure` output connected will route errors
-  through their own failure path instead of raising — TryCatchGroup won't see them as failures. To
-  test with TryCatchGroup, ensure the inner node's `failure` output has no connections so
-  `_handle_failure_exception` re-raises.
+- Catches any exception that causes the subflow to fail, including pre-execution validation errors
+  and `process()` exceptions. However, nodes that swallow their own exceptions internally (e.g.
+  `ExecutePython`) will appear as successes to TryCatchGroup.
+- Nodes based on `SuccessFailureNode` that have their `failure` output connected will route
+  **runtime** errors through their own failure path instead of raising — TryCatchGroup won't see
+  them as failures. To test runtime errors with TryCatchGroup, ensure the inner node's `failure`
+  output has no connections so `_handle_failure_exception` re-raises. Pre-execution validation
+  errors bypass this routing entirely and are always caught by TryCatchGroup.
 
 ## Use When
 
+- Testing pre-execution validation errors — conditions where the node rejects invalid parameter
+  states before `process()` runs. These errors crash the flow before any control path fires,
+  regardless of the node's base class, so TryCatchGroup is the only way to catch and assert on
+  them.
 - Testing runtime error conditions in nodes that are NOT `SuccessFailureNode` subclasses.
 - Testing that a node raises the expected exception under specific input conditions, while keeping
   the overall test workflow passing (not crashing).
