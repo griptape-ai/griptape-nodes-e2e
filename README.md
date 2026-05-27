@@ -1,30 +1,42 @@
 # griptape-nodes-e2e
 
-## Agent-augmented scripting
+Agent-driven end-to-end testing for
+[Griptape Nodes](https://github.com/griptape-ai/griptape-nodes).
 
-```mermaid
-flowchart TD
-    App(griptape-nodes-app) --> |MCP| Inspect[Agents inspect node+knowledge+feedback, produce plan]
-    Knowledge(Stdlib Knowledge) --> |MCP/SKILL| Inspect
-    Inspect --> Review{User happy}
-    Review --> |Yes| Write[Agent writes scripts using SDK]
-    Write --> ExecLive[Execute live scripts]
-    Review --> |No| Inspect
-    ExecLive --> |Serialise| ExecSerialised[Execute serialised workflows]
-    ExecSerialised --> Success{Success}
-    Success --> |No| Inspect
-    Success --> |Yes| Commit(Commit scripts)
-```
+## Overview
+
+This repository provides a **skill-based pipeline** that uses a coding harness (Claude Code) to
+generate end-to-end test workflows for Griptape Nodes. The pipeline inspects node source code and a
+live engine to produce test plans and executable workflows.
+
+### Pipeline Phases
+
+1. **Survey** - Static analysis of a node's source code. Enumerates all parameter configurations
+   (value-driven, connection-driven, UI-message-driven). Output: `inspections/<Node>.survey.md`.
+2. **Inspect** - Live confirmation of parameter behaviours against a running engine via MCP tools.
+   Output: `inspections/<Node>.inspect.md`.
+3. **Plan** - Proposes a test matrix of parameter-value configurations, error cases, and helper
+   nodes. Output: `inspections/<Node>.plan.md`. Requires human review and approval.
+4. **Build** - Constructs, validates, and saves test workflows via MCP tools. Reads the approved
+   plan as its sole input. Output: `tests/<Node>/`.
+
+## Repository Structure
+
+| Path                  | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `workspace/`          | Working directory for agent sessions that generate e2e tests   |
+| `workspace/.agents/`  | Skill definitions (survey, inspect, plan, workflow, wiki, etc) |
+| `griptape_nodes_e2e/` | Python package - currently a stub for potential future SDK use |
+
+The `workspace/` directory has its own `AGENTS.md`, MCP configuration, and skill definitions. When
+running the pipeline, the coding harness should be rooted in `workspace/`.
+
+This (root) directory is the working directory for **developing** the skills, tooling, and any
+future SDK code.
 
 ## Development
 
 ### Prerequisites
-
-Integration tests make use of git submodules of nodes libraries
-
-```bash
-git submodule update --init --recursive
-```
 
 Building the `griptape-nodes-app` package requires a public key for the license server. We do not
 use licensing in this project, so can use a dummy key, e.g.
@@ -37,16 +49,12 @@ uv sync --dev
 > Note: this will not be necessary once Python wheels are available for the `griptape-nodes-app`
 > package.
 
-# Notes
+### Static Analysis
 
-- Agent generates plan before doing anything
-  - another agent approves
-    - Multiple specialists
-  - user approves
-  - otherwise iterate
-- Consider Wiki Builder alongside SKILL.md
-  - Or even special Reactor knowledge graph
-  - Knowledge graph stores node library metadata
-  - Required to determine appropriate auxiliary nodes to connect for testing
-- For manual testing, expose parameters on a Start Flow, to try with different inputs or allow
-  supplying local file paths, etc.
+All linting and formatting is consolidated under a single `pre-commit` call:
+
+```bash
+pre-commit run --all-files
+```
+
+This runs ruff (lint + format), mdformat, docstrfmt, pydoclint, pyright, and gitlint.

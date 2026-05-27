@@ -59,7 +59,3 @@ ______________________________________________________________________
 ## Prerequisites
 
 - A running `griptape-nodes` engine with MCP server connectable.
-- The `griptape-nodes-e2e` Python package installed (from the parent directory):
-  ```bash
-  cd .. && uv sync --all-groups
-  ```

@@ -6,18 +6,29 @@ ______________________________________________________________________
 
 ## Project Overview
 
-`griptape-nodes-e2e` is an AI-assisted end-to-end testing framework for
+`griptape-nodes-e2e` is an agent-driven end-to-end testing framework for
 [Griptape Nodes](https://github.com/griptape-ai/griptape-nodes).
 
-### The `workspace/` directory
+### Two Working Directories
 
-The `workspace/` directory is the working directory for agent sessions that create e2e tests. It
-has its own `AGENTS.md`, skills, and MCP configuration. When an agent is launched to survey,
-inspect, or test a node, it should be rooted in `workspace/` — not the repository root.
+This repository has two distinct contexts:
 
-The repository root contains the SDK source code (`griptape_nodes_e2e/`), unit/integration tests
-(`tests/`), and development tooling. These are separate concerns: you develop the SDK here at the
-root, and you *use* the SDK (via agent skills) from `workspace/`.
+| Directory    | Purpose                                     | Who works here                                        |
+| ------------ | ------------------------------------------- | ----------------------------------------------------- |
+| `/` (root)   | Develop skills, tooling, and any future SDK | A developer (human or agent) improving the framework  |
+| `workspace/` | Run the e2e test generation pipeline        | An agent session generating tests for a specific node |
+
+**If you are generating e2e tests for a node**, you should be rooted in `workspace/`. See
+`workspace/AGENTS.md` for pipeline-specific guidance.
+
+**If you are developing the skills or tooling**, stay at the root. The rest of this file applies to
+you.
+
+### Package Status
+
+The `griptape_nodes_e2e/` Python package is currently a **stub** — the SDK sources have been
+removed. Development of an SDK, if needed, is a future concern. The development guidelines below
+are retained as general best practices for any future Python code in this package.
 
 ______________________________________________________________________
 
@@ -46,9 +57,21 @@ pre-commit install
 
 ______________________________________________________________________
 
-## Iteration Loop
+## Workspace Skill Development
 
-Follow this loop for every change, no matter how small:
+When modifying skill definitions in `workspace/.agents/skills/`, or other workspace content:
+
+- **Run `pre-commit run --all-files` from the repository root** after changes — this lints
+  Markdown, YAML, and any Python within the workspace tree.
+- **Test skills against a live engine** by running the pipeline from `workspace/`. Verify that
+  survey, inspect, plan, and workflow phases produce the expected outputs.
+- Skill files are Markdown with embedded instructions. Keep them concise and self-contained.
+
+______________________________________________________________________
+
+## Iteration Loop (SDK Development)
+
+Follow this loop when developing Python code in `griptape_nodes_e2e/`:
 
 0. **Write a test** — write one or more tests that prove the change will work. Tests live under
    `tests/unit/` or `tests/integration/`, mirroring the source tree (e.g.
