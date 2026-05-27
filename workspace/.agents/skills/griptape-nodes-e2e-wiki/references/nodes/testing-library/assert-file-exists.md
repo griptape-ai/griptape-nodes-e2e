@@ -32,15 +32,24 @@ On success, `result_details` contains `"Assertion passed: file exists at <resolv
 
 - The node under test writes a file (image, text, CSV, etc.) and you want to confirm the file was
   created at the expected location.
-- The output of the node under test is a file path string — wire it to `file_path`.
+- The output of the node under test is a file path string or an artifact — wire it to `file_path`.
 - The expected path is known at build time — set `file_path` as a PROPERTY using a macro.
 
 **Note:** This node only checks existence, not content. To validate file contents, read the file
 and wire its content to `AssertStrings` or `AssertEqual`.
 
+## Accepted `file_path` types
+
+`file_path` accepts both plain strings and Griptape artifact types:
+
+- **`str`** — a literal path or macro (e.g. `"{outputs}/result.png"`).
+- **Artifacts with a `.value` attribute** (e.g. `ImageUrlArtifact`) — the node extracts `.value`
+  automatically before resolving. This means you can wire an `ImageUrlArtifact` output directly
+  from a node like `OpenAiImageGeneration` without a type-conversion step.
+
 ## Example Wiring
 
 ```
-ImageGeneratorNode.output_path  →  AssertFileExists.file_path
+OpenAiImageGeneration.image  →  AssertFileExists.file_path   (ImageUrlArtifact — accepted directly)
 (or set file_path = "{outputs}/generated.png" as PROPERTY)
 ```
