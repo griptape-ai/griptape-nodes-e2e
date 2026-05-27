@@ -3,9 +3,8 @@ name: griptape-nodes-e2e-survey
 description: >-
   Given a node class name, locate its source code via MCP tools and analyse it to enumerate all
   parameter configurations — value-driven, connection-driven, and UI-message-driven. Produces a
-  survey document that guides the inspect skill's live exploration. When invoking as a subagent,
-  the task prompt must supply the absolute path to the output root directory — the skill cannot
-  ask interactively.
+  survey document that guides the inspect skill's live exploration. The output root directory must
+  be provided in the task prompt.
 compatibility: Requires an MCP connection to a running griptape-nodes engine (extended tools mode).
 metadata:
   author: the-foundry-visionmongers
@@ -29,15 +28,10 @@ ______________________________________________________________________
 
 ## Output Root
 
-Before starting any work, establish the **absolute path** to the output root directory using this
-priority order:
-
-1. If the path is explicitly stated in your task prompt, use it exactly as given.
-2. Otherwise, **stop immediately** and ask before doing anything else.
-
-Do not infer, guess, or silently default to the current working directory or any path derived from
-it. If you are running as a subagent and no path was provided, return a message to the orchestrator
-stating that the output root is required before you can proceed.
+The output root directory is provided in your task prompt as an absolute path. Use it exactly as
+given. Do not infer, guess, or silently default to any other path. If your task prompt does not
+contain an explicit output root path, stop immediately and return an error message stating that the
+output root directory was not provided.
 
 Inspections are saved to `{output_root}/inspections/`. Store the confirmed path and use it for all
 file reads and writes throughout this skill.
@@ -336,7 +330,7 @@ Save the survey document to `{output_root}/inspections/<NodeType>.survey.md`.
 Structure:
 
 ```markdown
-# <NodeType> — <Library Name>
+# {{NodeType}} — {{Library Name}}
 
 **Source:** `<relative file path from library subdirectory>`
 **Base class:** `<ClassName>`
@@ -359,17 +353,17 @@ Lists all visible parameters including those inherited from the base class.
 |------|-----------|------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...     | ...         |
 
-## Configuration: <param_name> = "<value>"
+## Configuration: {{param_name}} = "{{value}}"
 
-Changes from default: <brief description of what changed>
+Changes from default: {{brief description of what changed}}
 
 | Name | Direction | Type | Input Types | Default | Constraints |
 |------|-----------|------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...     | ...         |
 
-## Configuration: <param_name> ← <source_type> (connected)
+## Configuration: {{param_name}} ← {{source_type}} (connected)
 
-Changes from default: <brief description of what changed>
+Changes from default: {{brief description of what changed}}
 
 | Name | Direction | Type | Input Types | Default | Constraints |
 |------|-----------|------|-------------|---------|-------------|
@@ -378,13 +372,13 @@ Changes from default: <brief description of what changed>
 ## Configuration: AddParameterButton
 
 User can add parameters via the "+" button. Each added parameter has:
-<description of the template — name pattern, type, modes, etc.>
+{{description of the template — name pattern, type, modes, etc.}}
 
 ## Error Behavior
 
-### Base class: <SuccessFailureNode | ControlNode | DataNode | BaseNode>
-<If SuccessFailureNode: note the Succeeded/Failed control outputs and whether
-_create_status_parameters() is called.>
+### Base class: {{SuccessFailureNode | ControlNode | DataNode | BaseNode}}
+{{If SuccessFailureNode: note the Succeeded/Failed control outputs and whether
+_create_status_parameters() is called.}}
 
 ### Pre-execution validation (validate_before_node_run)
 
@@ -392,7 +386,7 @@ _create_status_parameters() is called.>
 |-----------|-----------|----------------|
 | ...       | ...       | ...            |
 
-<If validate_before_node_run is not overridden, write "None." instead of the table.>
+{{If validate_before_node_run is not overridden, write "None." instead of the table.}}
 
 ### Runtime errors (process)
 
@@ -400,8 +394,8 @@ _create_status_parameters() is called.>
 |-----------|-----------|----------|-------|
 | ...       | ...       | ...      | ...   |
 
-<Graceful = "Yes" if the raise is wrapped in _handle_failure_exception (SuccessFailureNode only),
-"No" if bare. If no runtime errors, write "None.">
+{{Graceful = "Yes" if the raise is wrapped in _handle_failure_exception (SuccessFailureNode only),
+"No" if bare. If no runtime errors, write "None."}}
 
 ### Design-time input handling (before_value_set / set_parameter_value)
 
@@ -409,17 +403,17 @@ _create_status_parameters() is called.>
 |-----------|-------|--------|-------|
 | ...       | ...   | ...    | ...   |
 
-<If none, write "None.">
+{{If none, write "None."}}
 
 ### Visual indicators (ParameterMessage / BadgeData)
 
-<Describe any error/warning messages or badges, what triggers them, and when they appear.
-If none, write "None.">
+{{Describe any error/warning messages or badges, what triggers them, and when they appear.
+If none, write "None."}}
 
 ## Notes
 
-<Any caveats, edge cases, or observations about the node's behaviour that the inspect skill
-should be aware of. Flag uncertainty with "?" annotations.>
+{{Any caveats, edge cases, or observations about the node's behaviour that the inspect skill
+should be aware of. Flag uncertainty with "?" annotations.}}
 ```
 
 ### Column definitions

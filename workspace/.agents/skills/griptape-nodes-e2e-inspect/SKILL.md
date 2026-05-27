@@ -3,9 +3,8 @@ name: griptape-nodes-e2e-inspect
 description: >-
   Confirm a Griptape Node's parameter configurations against a live engine via MCP tools,
   guided by a survey document from the griptape-nodes-e2e-survey skill. Produces a structured
-  markdown inspection report with live-confirmed parameter details for each configuration. When
-  invoking as a subagent, the task prompt must supply the absolute path to the output root
-  directory — the skill cannot ask interactively.
+  markdown inspection report with live-confirmed parameter details for each configuration. The
+  output root directory must be provided in the task prompt.
 compatibility: Requires an MCP connection to a running griptape-nodes engine.
 metadata:
   author: the-foundry-visionmongers
@@ -21,23 +20,26 @@ full parameter surface against a live engine — including dynamic parameters th
 configurations (value-driven, connection-driven, and UI-message-driven).
 
 The output is a structured markdown file saved to
-`{output_root}/inspections/<NodeType>.inspect.md`. Downstream agents or humans use this document to
-plan test workflows or generate scripts; this skill is not concerned with how the output is
-consumed.
+`{output_root}/inspections/{{NodeType}}.inspect.md`. The next step in the pipeline is the
+`griptape-nodes-e2e-plan` skill, which reads both this inspection report and the original survey
+document to propose a test matrix for user approval. The `griptape-nodes-e2e-workflow` skill then
+consumes the plan to generate test workflows.
+
+Because the plan skill reads the survey directly, the inspection report does not need to repeat
+information already present in the survey (expected error messages, code-path analysis, parameter
+semantics). The inspection's job is to record **what the live engine actually did** — confirmed
+parameter surfaces, actual errors, routing determinations, MCP constraints, helper nodes, and
+runtime observations. Discrepancies from the survey are noted inline; the survey itself provides
+the predictions and catalog.
 
 ______________________________________________________________________
 
 ## Output Root
 
-Before starting any work, establish the **absolute path** to the output root directory using this
-priority order:
-
-1. If the path is explicitly stated in your task prompt, use it exactly as given.
-2. Otherwise, **stop immediately** and ask before doing anything else.
-
-Do not infer, guess, or silently default to the current working directory or any path derived from
-it. If you are running as a subagent and no path was provided, return a message to the orchestrator
-stating that the output root is required before you can proceed.
+The output root directory is provided in your task prompt as an absolute path. Use it exactly as
+given. Do not infer, guess, or silently default to any other path. If your task prompt does not
+contain an explicit output root path, stop immediately and return an error message stating that the
+output root directory was not provided.
 
 Inspections are read from and saved to `{output_root}/inspections/`. Store the confirmed path and
 use it for all file reads and writes throughout this skill.
@@ -47,10 +49,10 @@ ______________________________________________________________________
 ## Survey Input
 
 Before starting live exploration, read the survey document at
-`{output_root}/inspections/<NodeType>.survey.md`. It lists all configuration axes discovered by
+`{output_root}/inspections/{{NodeType}}.survey.md`. It lists all configuration axes discovered by
 static analysis and predicts the parameter surface for each.
 
-A survey document is **required**. If `{output_root}/inspections/<NodeType>.survey.md` does not
+A survey document is **required**. If `{output_root}/inspections/{{NodeType}}.survey.md` does not
 exist, stop and run the `griptape-nodes-e2e-survey` skill first. The survey provides the
 configuration axes to explore — without it, the inspection cannot systematically cover all
 parameter mutations.
@@ -110,8 +112,8 @@ ______________________________________________________________________
 
 ### Step 0: Read the survey document
 
-Read `{output_root}/inspections/<NodeType>.survey.md` and use it to plan your exploration. Note all
-configuration axes listed.
+Read `{output_root}/inspections/{{NodeType}}.survey.md` and use it to plan your exploration. Note
+all configuration axes listed.
 
 ### Step 1: Clear engine state
 
@@ -174,7 +176,7 @@ If the survey lists no connection-driven configurations, skip this step.
 After confirming parameter surfaces (Steps 3–5), validate that each configuration actually produces
 output when executed. This step records **observed runtime behaviour** — what inputs were used,
 what outputs were produced, and which control paths were taken. These observations feed directly
-into the workflow skill as confirmed expected values.
+into the plan as confirmed expected values.
 
 **Create a fresh target node for this step** — surface exploration in Steps 3–5 may have left the
 node in a specific state.
@@ -196,8 +198,8 @@ For each configuration that was confirmed in Steps 3–5, run a basic validation
 
 Not every configuration needs a separate execution — if two configurations differ only in their
 parameter surface (not their runtime behaviour), one execution covering the shared logic is
-sufficient. Use judgement: the goal is to give the workflow skill at least one confirmed
-input→output pair per configuration, not exhaustive functional testing.
+sufficient. Use judgement: the goal is at least one confirmed input→output pair per configuration,
+not exhaustive functional testing.
 
 **Record helpers used during validation** in the Confirmed Helper Nodes table, alongside helpers
 from Step 5.
@@ -239,7 +241,7 @@ For each runtime error listed in the survey:
 
 **If the node is a SuccessFailureNode:** SuccessFailureNode runtime errors fall into two categories
 that both set `was_successful=False` and `result_details` but differ in which control output is
-taken. You must determine which applies before the workflow skill can write the correct test:
+taken. You must determine which applies so the plan can specify the correct test structure:
 
 - **Graceful failure** — the error reaches `_handle_failure_exception`; routes through `failure`
   when connected, crashes the flow when not connected.
@@ -260,10 +262,12 @@ instead:
    - Set the target node's parameters to trigger the runtime error.
    - Call `StartFlowRequest(wait_for_completion=true)` to execute the flow.
    - After completion, call `GetNodeResolutionStateRequest` on both sinks:
-     - **`failure` sink resolved** → **graceful failure**. Record: "Flow continues along `failure`
-       branch; `was_successful=False`; `result_details=<message>`".
-     - **`exec_out` sink resolved** (failure sink did not) → **status-only failure**. Record: "Flow
-       continues along `exec_out`; `was_successful=False`; `failure` branch never taken".
+     - **`failure` sink resolved** → **graceful failure**. Record Routing as `graceful` and
+       Observed Behavior as "`was_successful=False`; `result_details={{message}}`; `failure` branch
+       taken".
+     - **`exec_out` sink resolved** (failure sink did not) → **status-only failure**. Record
+       Routing as `status-only` and Observed Behavior as "`was_successful=False`;
+       `result_details={{message}}`; `exec_out` taken, `failure` branch not taken".
    - Also call `GetParameterValueRequest` for `was_successful` and `result_details` to capture the
      exact values regardless of which branch fired.
 
@@ -322,18 +326,21 @@ After writing the report, **tell the user directly** whether the node passed or 
 blocked, summarise the blockers in your response — do not make the user read the report to discover
 that the node is broken.
 
+If the node passed, suggest running the `griptape-nodes-e2e-plan` skill next to propose a test
+matrix before generating workflows.
+
 ______________________________________________________________________
 
 ## Output Format
 
-Save the inspection report to `{output_root}/inspections/<NodeType>.inspect.md`.
+Save the inspection report to `{output_root}/inspections/{{NodeType}}.inspect.md`.
 
 Structure:
 
 ```markdown
-# <NodeType> — <Library Name>
+# {{NodeType}} — {{Library Name}}
 
-Inspected against live engine on <date>.
+Inspected against live engine on {{date}}.
 
 ## Configuration: default
 **ID:** `config_default` · **Testability:** `static-workflow`
@@ -342,19 +349,19 @@ Inspected against live engine on <date>.
 |------|-----------|------|-------------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
-## Configuration: <param_name> = "<value>"
+## Configuration: {{param_name}} = "{{value}}"
 **ID:** `config_<param_name>_eq_<value>` · **Testability:** `static-workflow`
 
-Changes from default: <brief description of what changed>
+Changes from default: {{brief description of what changed}}
 
 | Name | Direction | Type | Input Types | Output Type | Default | Constraints |
 |------|-----------|------|-------------|-------------|---------|-------------|
 | ...  | ...       | ...  | ...         | ...         | ...     | ...         |
 
-## Configuration: <param_name> ← <source_type> (connected)
+## Configuration: {{param_name}} ← {{source_type}} (connected)
 **ID:** `config_<param_name>_connected` · **Testability:** `static-workflow` | `construction-time`
 
-Changes from default: <brief description of what changed>
+Changes from default: {{brief description of what changed}}
 
 | Name | Direction | Type | Input Types | Output Type | Default | Constraints |
 |------|-----------|------|-------------|-------------|---------|-------------|
@@ -362,103 +369,108 @@ Changes from default: <brief description of what changed>
 
 ## Error Behavior
 
-### Base class: <SuccessFailureNode | ControlNode | DataNode | BaseNode>
-<Confirmed base class and whether status parameters exist.>
+### Base class: {{SuccessFailureNode | ControlNode | DataNode | BaseNode}}
+{{Confirmed base class and whether status parameters exist.}}
 
 ### Design-time input handling
 **ID:** `error_design_time_input` · **Testability:** `static-workflow` | `construction-time`
 
-| Parameter | Input | Expected Result | Actual Result | Status |
-|-----------|-------|-----------------|---------------|--------|
-| ...       | ...   | ...             | ...           | ...    |
+| Parameter | Input | Result | Status |
+|-----------|-------|--------|--------|
+| ...       | ...   | ...    | ...    |
 
-<Status = "Confirmed" if actual matches expected, "Discrepancy" if not. If none, write "None.">
+{{Result = what was actually observed (e.g. "value coerced to `""`", "`output_compression` became
+visible"). Status = "Confirmed" if result matches the survey prediction, "Discrepancy: {{detail}}"
+if not. If none, write "None."}}
 
 ### Pre-execution validation (validate_before_node_run)
 
-| ID | Condition | Parameter | Expected Error | Actual Error | Status |
-|----|-----------|-----------|----------------|--------------|--------|
-| ...| ...       | ...       | ...            | ...          | ...    |
+| ID | Condition | Parameter | Actual Error | Status |
+|----|-----------|-----------|--------------|--------|
+| ...| ...       | ...       | ...          | ...    |
 
-<Each row gets a unique ID used as the workflow filename suffix. Use the pattern
+{{Each row gets a unique ID used as the workflow filename suffix. Use the pattern
 `error_pre_execution_<condition>` where `<condition>` is a short snake_case descriptor (e.g.
 `error_pre_execution_empty_key`, `error_pre_execution_invalid_type`). If there is only one
-validation condition, use `error_pre_execution_validation` as the ID.
-If none, write "None.">
+validation condition, use `error_pre_execution_validation` as the ID. Status = "Confirmed" if
+the actual error matches the survey's expected error, "Discrepancy: {{detail}}" if not.
+If none, write "None."}}
 
 ### Runtime errors (process)
 
-| ID | Condition | Error Type | Graceful Path | Hard Failure Path | Status |
-|----|-----------|-----------|---------------|-------------------|--------|
-| ...| ...       | ...       | ...           | ...               | ...    |
+| ID | Condition | Routing | Observed Behavior | Status |
+|----|-----------|---------|-------------------|--------|
+| ...| ...       | ...     | ...               | ...    |
 
-<Each row gets a unique ID used as the workflow filename suffix. Use the pattern
+{{Each row gets a unique ID used as the workflow filename suffix. Use the pattern
 `error_runtime_<condition>` where `<condition>` is a short snake_case descriptor (e.g.
 `error_runtime_key_not_found`, `error_runtime_non_dict_input`). If there is only one runtime
 error condition, use `error_runtime` as the ID.
 
-Graceful Path = "Flow continues, was_successful=False, result_details=<message>" or "N/A" if not a
-SuccessFailureNode. Hard Failure Path = "Flow errored" or description of actual behaviour.
-Status = "Confirmed" or "Discrepancy".
-If none, write "None.">
+Routing = "graceful" (routes through `failure` when connected, crashes when not), "status-only"
+(routes through `exec_out`, sets was_successful=False), or "---" if not confirmed.
+Observed Behavior = brief description of what actually happened, or "Not tested: {{reason}}".
+Status = "Confirmed" or "Not confirmed".
+If none, write "None."}}
 
 ### Visual indicators
 
-<Results of visual indicator checks, or "None." if none listed in survey.>
+{{Results of visual indicator checks, or "None." if none listed in survey.}}
 
 ## MCP Constraints
 
 Parameters that require special handling when interacted with via MCP tools. These are operational
 quirks discovered during inspection — not parameter constraints visible in the UI, but behaviours
-specific to the MCP interface that the workflow skill must follow.
+specific to the MCP interface that downstream skills must follow.
 
 | Parameter | Constraint | Workaround |
 |-----------|-----------|------------|
-| <e.g. default_value_if_not_found> | <e.g. SetParameterValueRequest fails without data_type — engine infers "any", rejected by allowed list> | <e.g. Always pass data_type="str" (or concrete type)> |
+| {{e.g. default_value_if_not_found}} | {{e.g. SetParameterValueRequest fails without data_type — engine infers "any", rejected by allowed list}} | {{e.g. Always pass data_type="str" (or concrete type)}} |
 
-<If no MCP-specific constraints were discovered, write "None.">
+{{If no MCP-specific constraints were discovered, write "None."}}
 
 ## Confirmed Helper Nodes
 
-Helper nodes used during inspection. Downstream skills should reuse these rather than
-re-discovering them.
+Helper nodes used during inspection. The plan should carry these forward rather than requiring
+re-discovery.
 
 | Purpose | Node Type | Library | Parameter | Direction | Type |
 |---------|-----------|---------|-----------|-----------|------|
-| <role in testing, e.g. "str source for output_if_true"> | <e.g. TextInput> | <e.g. Griptape Nodes Library> | <e.g. text> | <output> | <str> |
-| <e.g. "str consumer for output assertion"> | <e.g. AssertStrings> | <e.g. Griptape Nodes Testing Library> | <e.g. actual> | <input> | <str> |
-| <e.g. "failure-path sink"> | <e.g. LoggerNode> | <e.g. Griptape Nodes Library> | <e.g. exec_in> | <control-in> | <control> |
+| {{role in testing, e.g. "str source for output_if_true"}} | {{e.g. TextInput}} | {{e.g. Griptape Nodes Library}} | {{e.g. text}} | {{output}} | {{str}} |
+| {{e.g. "str consumer for output assertion"}} | {{e.g. AssertStrings}} | {{e.g. Griptape Nodes Testing Library}} | {{e.g. actual}} | {{input}} | {{str}} |
+| {{e.g. "failure-path sink"}} | {{e.g. LoggerNode}} | {{e.g. Griptape Nodes Library}} | {{e.g. exec_in}} | {{control-in}} | {{control}} |
 
-<Include every helper node used in Steps 5 and 6, regardless of whether it was deleted after use.
+{{Include every helper node used in Steps 5 and 6, regardless of whether it was deleted after use.
 Group by purpose. If no helpers were needed (e.g. no connection-driven configurations or error
-tests), write "None.">
+tests), write "None."}}
 
 ## Runtime Observations
 
 Confirmed input→output behaviour observed during Step 6a. These are facts, not predictions — the
-workflow skill should use them as expected values.
+plan should use them as expected values in assertion nodes.
 
 | Configuration | Inputs | Outputs | Control Path | Status |
 |---------------|--------|---------|-------------|--------|
-| <config name or section ID> | <param=value, param=value> | <param=value, param=value> | <e.g. "Then", "exec_out", or "—"> | <Resolved / Errored> |
+| {{config name or section ID}} | {{param=value, param=value}} | {{param=value, param=value}} | {{e.g. "Then", "exec_out", or "---"}} | {{Resolved / Errored}} |
 
-<Each row is one execution. "Inputs" lists the parameter values set before execution. "Outputs"
+{{Each row is one execution. "Inputs" lists the parameter values set before execution. "Outputs"
 lists the output parameter values read after execution. "Control Path" notes which control output
 was taken, if observable (e.g. for IfElse: "Then" or "Else"; for ControlNode: "exec_out"; write
-"—" if not observable or not applicable). "Status" is "Resolved" if execution succeeded, "Errored"
+"---" if not observable or not applicable). "Status" is "Resolved" if execution succeeded, "Errored"
 if it failed.
 
-Not every configuration needs a separate row — if two configurations share runtime behaviour,
+Not every configuration needs a separate row --- if two configurations share runtime behaviour,
 one observation covering the shared logic is sufficient. The goal is at least one confirmed
-input→output pair per configuration that the workflow skill will need to build a test for.
+input-to-output pair per configuration that the plan will need to specify a test for.
 
-If no runtime validation was performed (e.g. node requires external resources), write "None." and
-explain why.>
+If no runtime validation was performed, write "None." and explain why. Note: the engine has
+`GT_CLOUD_API_KEY` configured, so nodes that call external APIs via the Griptape Cloud proxy
+(OpenAI, Anthropic, etc.) can and should be executed during inspection.}}
 
 ## Notes
 
-<Any observations, non-blocking discrepancies from the survey, or edge cases discovered during
-inspection. Blockers do NOT go here — they go in the Verdict.>
+{{Any observations, non-blocking discrepancies from the survey, or edge cases discovered during
+inspection. Blockers do NOT go here --- they go in the Verdict.}}
 
 ## Verdict
 
@@ -468,8 +480,8 @@ _or_
 
 **BLOCKED** — The following issues prevent a full e2e test suite:
 
-1. <Blocker description with steps to reproduce.>
-2. <Blocker description with steps to reproduce.>
+1. {{Blocker description with steps to reproduce.}}
+2. {{Blocker description with steps to reproduce.}}
 ```
 
 ### Section IDs and testability tags
@@ -507,9 +519,9 @@ Sections that are **not testable** — `## Static parameters`, `## MCP Constrain
 
 ### Testability classification
 
-Every testable section must include a **Testability** value on its metadata line. This tells
-downstream skills whether the behaviour can be verified by loading and running a saved workflow, or
-only by building a workflow programmatically and observing changes during construction.
+Every testable section must include a **Testability** value on its metadata line. This tells the
+plan skill whether the behaviour can be verified by loading and running a saved workflow, or only
+by building a workflow programmatically and observing changes during construction.
 
 The testability tag is **mandatory** — every section with an ID must also have a testability value.
 
@@ -595,7 +607,7 @@ ______________________________________________________________________
   comparison.
 
 - **Flag survey discrepancies.** If a parameter's live details differ from the survey prediction,
-  add `(survey predicted: <value>)` after the actual value in the table, and note it in the Notes
+  add `(survey predicted: {{value}})` after the actual value in the table, and note it in the Notes
   section.
 
 - **Use fresh nodes for validation and error exploration.** Steps 3–5 (parameter surface
@@ -625,4 +637,12 @@ ______________________________________________________________________
 - **Record MCP constraints as you go.** During any step, if an MCP tool call fails or requires
   non-obvious arguments to succeed (e.g. `SetParameterValueRequest` needs `data_type`, or a
   connection is rejected despite matching types), record it in the `## MCP Constraints` table — do
-  not bury it in Notes. The workflow skill depends on these to avoid repeating the same failures.
+  not bury it in Notes. Downstream skills depend on these to avoid repeating the same failures.
+
+- **`GT_CLOUD_API_KEY` is always available.** The griptape-nodes engine has `GT_CLOUD_API_KEY`
+  configured in its secrets. This key proxies requests to external services (OpenAI, Anthropic,
+  etc.) via the Griptape Cloud proxy. For nodes that use this proxy, always perform happy-path
+  validation (Step 6a) and runtime error testing (Step 6e) — do not skip them or write "None." in
+  the Runtime Observations table citing credential absence. If a node requires a *different*
+  credential not covered by the proxy, that may genuinely be absent — note it accordingly. Use a
+  generous `completion_timeout_ms` for flows that make external API calls.
