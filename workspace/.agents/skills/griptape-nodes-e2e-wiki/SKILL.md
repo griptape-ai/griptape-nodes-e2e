@@ -45,6 +45,8 @@ Start here when you know the output type of the node under test and need to pick
 | `ImageUrlArtifact`             | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | [CreateColorBars](references/nodes/standard-library/create-color-bars.md)                                                           |
 | `VideoUrlArtifact`             | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | [LoadVideo](references/nodes/standard-library/load-video.md) (bundled test asset)                                                   |
 | `AudioUrlArtifact`             | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | [LoadAudio](references/nodes/standard-library/load-audio.md) (bundled test assets)                                                  |
+| `Tool`                         | —                                                                                                                                                                      | [Calculator](references/nodes/standard-library/calculator.md) (simplest; no external deps)                                          |
+| `Ruleset`                      | —                                                                                                                                                                      | [Ruleset](references/nodes/standard-library/ruleset.md)                                                                             |
 | `any` (unknown / mixed)        | [AssertEqual](references/nodes/testing-library/assert-equal.md), [AssertTrue](references/nodes/testing-library/assert-true.md)                                         | —                                                                                                                                   |
 | file / path                    | [AssertFileExists](references/nodes/testing-library/assert-file-exists.md)                                                                                             | —                                                                                                                                   |
 
@@ -89,6 +91,8 @@ Nodes that furnish literal values to the node under test's input parameters.
 | `KeyValuePair`    | [key-value-pair.md](references/nodes/standard-library/key-value-pair.md)       | Build a single-entry `dict` from editable key + value props      |
 | `LoadVideo`       | [load-video.md](references/nodes/standard-library/load-video.md)               | Loads a `VideoUrlArtifact` from file path (bundled test asset)   |
 | `LoadAudio`       | [load-audio.md](references/nodes/standard-library/load-audio.md)               | Loads an `AudioUrlArtifact` from file path (bundled test assets) |
+| `Calculator`      | [calculator.md](references/nodes/standard-library/calculator.md)               | Provides a `Tool` (calculator; no external deps)                 |
+| `Ruleset`         | [ruleset.md](references/nodes/standard-library/ruleset.md)                     | Creates a `Ruleset` from name + rules text                       |
 
 ### Type Converters — `Griptape Nodes Library`
 
