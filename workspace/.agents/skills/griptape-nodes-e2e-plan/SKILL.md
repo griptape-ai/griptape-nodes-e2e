@@ -146,7 +146,15 @@ Use the **survey document** as the primary source for understanding parameter se
 5. **If the survey does not mention per-value logic for the parameter**, and the parameter appears
    to be forwarded directly to an API call or downstream node, classify as `pass-through`.
 
-6. **When in doubt, classify as `behavioral`** — it is better to propose a test that the user
+6. **ParameterList (expander) parameters are testable** If a parameter is a `ParameterList`
+   container (the inspection's MCP Constraints table will say "Expander UI" or "ParameterList"), it
+   can be connected to via `AddParameterToNodeRequest` + connection. Check the wiki for a source
+   node that provides the element type. Classify the parameter as `pass-through` (one test with one
+   connected item) or `behavioral` (if different items produce different node-side behaviour). **Do
+   not classify as `fixed`** simply because the parameter requires a connection rather than a
+   `SetParameterValueRequest`.
+
+7. **When in doubt, classify as `behavioral`** — it is better to propose a test that the user
    removes than to miss a test that catches a real bug.
 
 ### User override
@@ -221,10 +229,10 @@ what the helper node system exists for.
 expects a whole `list[X]` value as one connection. Use `CreateList`: connect per-item source nodes
 to `CreateList.items_0`, `items_1`, … and wire `CreateList.output` to the target parameter.
 
-**Pattern B — expander-style list parameters** ("Expander UI" in constraints): the parameter
-creates individual named slots (`param_0`, `param_1`, …) as items are connected, just like
-`CreateList.items`. Connect a single source node directly to the first slot (`param_0`) — **no
-`CreateList` needed**.
+**Pattern B — expander-style ParameterList parameters** ("Expander UI" or "ParameterList" in
+constraints): the parameter is a `ParameterList` container that creates individual named slots as
+items are added. Use `AddParameterToNodeRequest` to create a slot, then connect a source node to
+the returned slot name. **No `CreateList` needed.**.
 
 To propose a test for a connection-required parameter:
 

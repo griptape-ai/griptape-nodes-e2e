@@ -646,3 +646,11 @@ ______________________________________________________________________
   the Runtime Observations table citing credential absence. If a node requires a *different*
   credential not covered by the proxy, that may genuinely be absent — note it accordingly. Use a
   generous `completion_timeout_ms` for flows that make external API calls.
+
+- **Identify ParameterList (expander) inputs and note them in MCP Constraints.** During Step 3, if
+  a parameter's details show it is a `ParameterList` container (look for `ui_options` containing
+  `expander` or the parameter having child slots rather than a direct value), record this in the
+  MCP Constraints table. The constraint should note: "Expander-style ParameterList — use
+  `AddParameterToNodeRequest` to create a slot before connecting." Also record a compatible source
+  node for the element type in the Confirmed Helper Nodes table. The plan skill needs this
+  information to correctly classify the parameter as testable rather than skipping it.
