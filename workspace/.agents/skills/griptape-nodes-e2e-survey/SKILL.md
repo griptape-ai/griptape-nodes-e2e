@@ -228,7 +228,11 @@ If the node (or any ancestor) extends `SuccessFailureNode`, it automatically has
   has outgoing connections:
   - **Connected:** logs the error and continues execution along the "Failed" path (graceful
     failure).
-  - **Not connected:** raises the exception, crashing the flow with a `NodeErrorEvent`.
+  - **Not connected:** raises the exception, crashing the flow with a `NodeErrorEvent`. However, if
+    the calling code catches this re-raise (e.g. in a `try/except` block), the flow may silently
+    terminate propagation instead of crashing — this is called **contained failure**. Note when
+    `_handle_failure_exception` is called inside a `try/except` so the inspect skill can confirm
+    whether the crash actually occurs.
 - **Status parameters** (if `_create_status_parameters()` is called in `__init__`):
   `was_successful` (bool, output) and `result_details` (str, output) inside a collapsible "Status"
   `ParameterGroup`.
@@ -395,7 +399,10 @@ _create_status_parameters() is called.}}
 | ...       | ...       | ...      | ...   |
 
 {{Graceful = "Yes" if the raise is wrapped in _handle_failure_exception (SuccessFailureNode only),
-"No" if bare. If no runtime errors, write "None."}}
+"Yes (caught)" if the _handle_failure_exception call is inside a try/except that catches the
+re-raise, "No" if bare. "Yes (caught)" indicates possible contained failure — the flow may not
+crash even when `failure` is not connected. The inspect skill will confirm the actual routing.
+If no runtime errors, write "None."}}
 
 ### Design-time input handling (before_value_set / set_parameter_value)
 

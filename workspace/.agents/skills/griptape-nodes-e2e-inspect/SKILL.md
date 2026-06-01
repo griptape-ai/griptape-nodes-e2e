@@ -239,12 +239,17 @@ testing the next rule, or delete and recreate the node.
 
 For each runtime error listed in the survey:
 
-**If the node is a SuccessFailureNode:** SuccessFailureNode runtime errors fall into two categories
-that both set `was_successful=False` and `result_details` but differ in which control output is
-taken. You must determine which applies so the plan can specify the correct test structure:
+**If the node is a SuccessFailureNode:** SuccessFailureNode runtime errors fall into three
+categories that all set `was_successful=False` and `result_details` but differ in which control
+output is taken and what happens when `failure` is not connected. You must determine which applies
+so the plan can specify the correct test structure:
 
 - **Graceful failure** — the error reaches `_handle_failure_exception`; routes through `failure`
   when connected, crashes the flow when not connected.
+- **Contained failure** — the error routes through `failure` when connected, but silently
+  terminates propagation when not connected (does not crash the flow). This occurs when the node
+  catches the re-raise from `_handle_failure_exception` or uses custom routing logic that checks
+  whether `failure` is connected before deciding how to handle the error.
 - **Status-only failure** — the error sets `was_successful=False` directly without calling
   `_handle_failure_exception`; always routes through `exec_out` regardless of whether `failure` is
   connected.
@@ -255,31 +260,36 @@ UNRESOLVED after `ResolveNodeRequest` is not evidence that the `failure` branch 
 only means `ResolveNodeRequest` does not follow control outputs at all. Use a full flow execution
 instead:
 
-1. **Determine routing (graceful failure vs. status-only failure):**
+1. **Determine routing (with `failure` connected):**
 
    - Create a fresh full mini-flow: the target node, a sink connected to `failure` (e.g.
      `LoggerNode` on its `exec_in`), and a second sink connected to `exec_out`.
    - Set the target node's parameters to trigger the runtime error.
    - Call `StartFlowRequest(wait_for_completion=true)` to execute the flow.
    - After completion, call `GetNodeResolutionStateRequest` on both sinks:
-     - **`failure` sink resolved** → **graceful failure**. Record Routing as `graceful` and
-       Observed Behavior as "`was_successful=False`; `result_details={{message}}`; `failure` branch
-       taken".
+     - **`failure` sink resolved** → the error routes through `failure`. Proceed to sub-step 2 to
+       determine whether this is **graceful** or **contained**.
      - **`exec_out` sink resolved** (failure sink did not) → **status-only failure**. Record
        Routing as `status-only` and Observed Behavior as "`was_successful=False`;
        `result_details={{message}}`; `exec_out` taken, `failure` branch not taken".
    - Also call `GetParameterValueRequest` for `was_successful` and `result_details` to capture the
      exact values regardless of which branch fired.
 
-2. **Hard failure (graceful failure errors only):**
+2. **Determine crash behaviour (with `failure` disconnected):**
 
    Status-only failures always route through `exec_out` and cannot crash the flow, so skip this
-   sub-step for them. For **graceful failure** errors only:
+   sub-step for them. For errors that routed through `failure` in sub-step 1:
 
-   - Ensure the target node's `failure` output has no connections.
+   - Create a fresh mini-flow with the target node and no connection on `failure`.
    - Set the target node's parameters to trigger the same runtime error.
    - Call `StartFlowRequest(wait_for_completion=true)`.
-   - Confirm the flow errored.
+   - Check the result:
+     - **Flow errored** → **graceful failure**. Record Routing as `graceful` and Observed Behavior
+       as "`was_successful=False`; `result_details={{message}}`; `failure` branch taken when
+       connected, flow crashes when not connected".
+     - **Flow completed without error** → **contained failure**. Record Routing as `contained` and
+       Observed Behavior as "`was_successful=False`; `result_details={{message}}`; `failure` branch
+       taken when connected, propagation silently terminates when not connected".
 
 **If the node is not a SuccessFailureNode:** Test the hard failure only:
 
@@ -407,7 +417,8 @@ If none, write "None."}}
 `error_runtime_key_not_found`, `error_runtime_non_dict_input`). If there is only one runtime
 error condition, use `error_runtime` as the ID.
 
-Routing = "graceful" (routes through `failure` when connected, crashes when not), "status-only"
+Routing = "graceful" (routes through `failure` when connected, crashes when not), "contained"
+(routes through `failure` when connected, silently terminates when not — no crash), "status-only"
 (routes through `exec_out`, sets was_successful=False), or "---" if not confirmed.
 Observed Behavior = brief description of what actually happened, or "Not tested: {{reason}}".
 Status = "Confirmed" or "Not confirmed".
@@ -614,13 +625,14 @@ ______________________________________________________________________
   exploration) may leave the node in a specific configuration. Step 6 (runtime validation and error
   exploration) should start with a clean node to avoid interference.
 
-- **SuccessFailureNode errors fall into two categories — confirm which before recording.** Graceful
-  failures (via `_handle_failure_exception`) route through `failure` when connected and crash when
-  not; status-only failures (direct `_set_status_results` calls) always route through `exec_out`
-  regardless of connections. Use `StartFlowRequest(wait_for_completion=true)` with sinks on both
-  outputs and check `GetNodeResolutionStateRequest` on each sink to determine which applies. Do not
-  infer routing from `ResolveNodeRequest` — it never propagates to downstream nodes so sink
-  resolution state is meaningless after a `ResolveNodeRequest` call.
+- **SuccessFailureNode errors fall into three categories — confirm which before recording.**
+  Graceful failures route through `failure` when connected and crash when not; contained failures
+  route through `failure` when connected but silently terminate when not (no crash); status-only
+  failures always route through `exec_out` regardless of connections. First test with `failure`
+  connected to determine whether the error goes to `failure` or `exec_out`; then test with
+  `failure` disconnected to distinguish graceful (crashes) from contained (no crash). Do not infer
+  routing from `ResolveNodeRequest` — it never propagates to downstream nodes so sink resolution
+  state is meaningless after a `ResolveNodeRequest` call.
 
 - **Design-time input handling happens at set time, not execution time.** All behaviour in §6c
   (coercion, normalisation, value transformation) is triggered by `SetParameterValueRequest`, not
