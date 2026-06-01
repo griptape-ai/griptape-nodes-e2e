@@ -516,3 +516,10 @@ ______________________________________________________________________
   If the parameter is not directly settable and expects slots to be added individually, it is a
   slot-based `ParameterList`. This classification prevents the inspect skill from incorrectly
   requiring `AddParameterToNodeRequest` for whole-list inputs.
+
+- **Derive UI traits (Slider, Options, etc.) from actual source code, not from parameter names or
+  conventions.** Do not infer that a `timeout` parameter has a slider or that an `operator`
+  parameter has a dropdown — check the `add_parameter()` call and trait assignments in the source.
+  If no `Slider` trait is applied, do not predict one. Incorrect trait predictions cause the
+  inspect skill to flag discrepancies that waste time. Append `?` if you cannot confirm a trait
+  from the source.
