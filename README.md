@@ -9,6 +9,21 @@ This repository provides a **skill-based pipeline** that uses a coding harness (
 generate end-to-end test workflows for Griptape Nodes. The pipeline inspects node source code and a
 live engine to produce test plans and executable workflows.
 
+## Usage
+
+Ensure Griptape Nodes is running locally, with a fresh workspace.
+
+In your terminal `cd` into the `workspace/` directory, start `claude`, and run the pipeline skill
+
+```bash
+/griptape-nodes-e2e-pipeline
+```
+
+The agent will ask you which node to target and where artifacts should be saved (the workspace
+directory itself is a good target).
+
+At time of writing, the pipeline has been tested and confirmed working using the Sonnet 4.6 model.
+
 ### Pipeline Phases
 
 1. **Survey** - Static analysis of a node's source code. Enumerates all parameter configurations
