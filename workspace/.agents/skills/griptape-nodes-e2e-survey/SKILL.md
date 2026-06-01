@@ -507,3 +507,12 @@ ______________________________________________________________________
   cases: design-time handling tests verify the normalised value; runtime error tests verify the
   exception or graceful failure path. Design-time behaviour also cannot be re-tested by re-running
   a saved workflow — it must be confirmed during inspection or via pytest.
+
+- **Classify list-type parameters with `expander` in `ui_options`.** A parameter with an expander
+  can be either (a) a slot-based `ParameterList` that requires `AddParameterToNodeRequest` to add
+  individual slots, or (b) a whole-list input that uses expander UI for display. Distinguish them
+  by checking: does the parameter have a concrete list type (e.g. `list[ImageUrlArtifact]`) and
+  accept direct connections via `input_types`? If yes, it is a whole-list input — note it as such.
+  If the parameter is not directly settable and expects slots to be added individually, it is a
+  slot-based `ParameterList`. This classification prevents the inspect skill from incorrectly
+  requiring `AddParameterToNodeRequest` for whole-list inputs.

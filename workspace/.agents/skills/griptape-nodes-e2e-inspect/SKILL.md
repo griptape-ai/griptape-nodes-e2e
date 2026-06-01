@@ -659,10 +659,28 @@ ______________________________________________________________________
   credential not covered by the proxy, that may genuinely be absent — note it accordingly. Use a
   generous `completion_timeout_ms` for flows that make external API calls.
 
-- **Identify ParameterList (expander) inputs and note them in MCP Constraints.** During Step 3, if
-  a parameter's details show it is a `ParameterList` container (look for `ui_options` containing
-  `expander` or the parameter having child slots rather than a direct value), record this in the
-  MCP Constraints table. The constraint should note: "Expander-style ParameterList — use
-  `AddParameterToNodeRequest` to create a slot before connecting." Also record a compatible source
-  node for the element type in the Confirmed Helper Nodes table. The plan skill needs this
-  information to correctly classify the parameter as testable rather than skipping it.
+- **Distinguish ParameterList (slot-based) inputs from whole-list inputs with expander display.**
+  During Step 3, if a parameter's `ui_options` contains `expander`, **do not rely solely on live
+  engine metadata to classify it.** Both slot-based ParameterLists and whole-list inputs can
+  surface with identical `type`, `input_types`, and `ui_options` shapes in
+  `GetParameterDetailsRequest` — the engine metadata alone is not a reliable distinguishing signal.
+
+  Instead, **defer to the survey's classification**:
+
+  - If the survey classifies the parameter as a slot-based `ParameterList` (e.g. because the source
+    code uses `get_parameter_list_value()`, `ParameterList`, or `AddParameterToNodeRequest` to
+    manage slots), treat it as slot-based. Record this in the MCP Constraints table with:
+    "Slot-based ParameterList — use `AddParameterToNodeRequest` to create a slot before
+    connecting." Also record a compatible source node for the element type in the Confirmed Helper
+    Nodes table.
+  - If the survey classifies it as a whole-list input (direct connection, no slot management),
+    treat it as a normal input parameter — do **not** mark it as requiring
+    `AddParameterToNodeRequest`.
+
+  Only override the survey's classification if you obtain direct empirical evidence from the live
+  engine — for example, if a `CreateConnection` to the parameter succeeds *without* first calling
+  `AddParameterToNodeRequest`, that confirms whole-list. If `AddParameterToNodeRequest` succeeds
+  and creates a child slot, that confirms slot-based. Absent such a test, the survey's source-code
+  analysis is more authoritative than engine metadata for this distinction.
+
+  The plan skill needs this distinction to correctly classify the parameter as testable.
