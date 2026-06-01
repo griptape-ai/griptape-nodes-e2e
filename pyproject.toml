@@ -1,5 +1,7 @@
 # griptape-nodes-e2e
 # Copyright (c) 2026 The Foundry Visionmongers Ltd
+# SPDX-License-Identifier: Apache-2.0
+
 [project]
 name = "griptape-nodes-e2e"
 version = "0.1.0"

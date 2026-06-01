@@ -100,6 +100,7 @@ Every file that supports comments **must** begin with this header:
 ```python
 # griptape-nodes-e2e
 # Copyright (c) 2026 The Foundry Visionmongers Ltd
+# SPDX-License-Identifier: Apache-2.0
 ```
 
 For YAML, TOML, and other non-Python formats that support `#` comments, use the same header.
