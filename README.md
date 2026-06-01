@@ -36,19 +36,6 @@ future SDK code.
 
 ## Development
 
-### Prerequisites
-
-Building the `griptape-nodes-app` package requires a public key for the license server. We do not
-use licensing in this project, so can use a dummy key, e.g.
-
-```bash
-export GRIPTAPE_NODES_LICENSE_SERVER_PUBLIC_KEY=LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUNvd0JRWURLMlZ3QXlFQWdreTRWVHc2b05lZmdSTHFsNm5uTnNlS1R0c295UHlMS1NkazV4anNGTjg9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=
-uv sync --dev
-```
-
-> Note: this will not be necessary once Python wheels are available for the `griptape-nodes-app`
-> package.
-
 ### Static Analysis
 
 All linting and formatting is consolidated under a single `pre-commit` call:
