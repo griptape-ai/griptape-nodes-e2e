@@ -41,7 +41,7 @@ dev = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-extend-exclude = []
+extend-exclude = ["workspace/tests"]
 
 # Python linter rules.
 [tool.ruff.lint]
@@ -206,7 +206,7 @@ inline-quotes = "double"
 venvPath = "."
 venv = ".venv"
 include = ["."]
-exclude = [".venv", "**/node_modules", "**/__pycache__", "**/.*", "templates"]
+exclude = [".venv", "**/node_modules", "**/__pycache__", "**/.*", "templates", "workspace/tests"]
 pythonVersion = "3.12"
 reportIncompatibleMethodOverride = false
 
@@ -232,9 +232,9 @@ should-document-star-arguments = false
 check-class-attributes = false
 allow-init-docstring = true
 quiet = true
-exclude = '\.git|\.venv|__pycache__|^tests/'
+exclude = '\.git|\.venv|__pycache__|^tests/|workspace[/\\]tests'
 
 # Formatter for docstrings, including re-wrapping short/long lines.
 [tool.docstrfmt]
 line_length = 88
-extend_exclude = []
+extend_exclude = ["workspace/tests/**"]
