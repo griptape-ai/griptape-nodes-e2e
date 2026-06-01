@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__griptape-nodes__*",
+      "Skill(griptape-nodes-e2e-survey)",
+      "Skill(griptape-nodes-e2e-wiki)",
+      "Skill(griptape-nodes-e2e-inspect)",
+      "Skill(griptape-nodes-e2e-workflow)",
+      "Edit(inspections/**)",
+      "Edit(tests/**)"
+    ]
+  }
+}
