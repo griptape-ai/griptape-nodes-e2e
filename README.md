@@ -19,6 +19,12 @@ In your terminal `cd` into the `workspace/` directory, start `claude`, and run t
 /griptape-nodes-e2e-pipeline
 ```
 
+> **Note**
+>
+> Windows users: the skills are under a `.agents` directory, with a symlink from the `.claude`
+> directory. Depending on your setup, symlinks may not be applied correctly by git, and the skills
+> will have to be copied to `workspace/.claude/skills/` for the agent to find them.
+
 The agent will ask you which node to target and where artifacts should be saved (the workspace
 directory itself is a good target).
 
