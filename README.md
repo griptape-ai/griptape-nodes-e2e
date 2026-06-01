@@ -36,6 +36,15 @@ future SDK code.
 
 ## Development
 
+### Quick start
+
+Install dependencies and pre-commit hooks:
+
+```bash
+uv sync --all-groups
+pre-commit install
+```
+
 ### Static Analysis
 
 All linting and formatting is consolidated under a single `pre-commit` call:
@@ -44,4 +53,18 @@ All linting and formatting is consolidated under a single `pre-commit` call:
 pre-commit run --all-files
 ```
 
-This runs ruff (lint + format), mdformat, docstrfmt, pydoclint, pyright, and gitlint.
+This runs ruff (lint + format), mdformat, docstrfmt, pydoclint, pyright.
+
+In addition, gitlint is used to check commit messages on commit (see [.gitlint](./.gitlint) for
+rules)
+
+To run linters/formatters individually (auto-fixing where possible):
+
+```bash
+uv run mdformat *.md workspace/
+uv run ruff format
+uv run ruff check --fix
+uv run docstrfmt .
+uv run pydoclint .
+uv run pyright .
+```
